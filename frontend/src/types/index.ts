@@ -1,0 +1,102 @@
+export interface User {
+  id: string;
+  email: string;
+}
+
+export type ExpenseCategory =
+  | 'MAISTAS'
+  | 'KURAS'
+  | 'RUBAI'
+  | 'NEBUTINOS'
+  | 'BOLT_WOLT'
+  | 'KITOS';
+
+export interface Expense {
+  id: string;
+  userId: string;
+  category: ExpenseCategory;
+  amount: number;
+  note?: string | null;
+  date: string;
+  createdAt: string;
+}
+
+export interface ExpensesResponse {
+  expenses: Expense[];
+  total: number;
+  byCategory: Record<ExpenseCategory, number>;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  salary: number | null;
+  foodDailyLimit: number;
+  foodMonthlyLimit: number;
+  createdAt: string;
+}
+
+export interface CategoryMeta {
+  label: string;
+  emoji: string;
+  color: string;
+  bg: string;
+  border: string;
+  bar: string;
+}
+
+export const CATEGORY_META: Record<ExpenseCategory, CategoryMeta> = {
+  MAISTAS: {
+    label: 'Maistas',
+    emoji: '🍽️',
+    color: 'text-red-700',
+    bg: 'bg-red-50',
+    border: 'border-red-200',
+    bar: 'bg-red-400',
+  },
+  KURAS: {
+    label: 'Kuras',
+    emoji: '⛽',
+    color: 'text-amber-700',
+    bg: 'bg-amber-50',
+    border: 'border-amber-200',
+    bar: 'bg-amber-400',
+  },
+  RUBAI: {
+    label: 'Rūbai',
+    emoji: '👗',
+    color: 'text-purple-700',
+    bg: 'bg-purple-50',
+    border: 'border-purple-200',
+    bar: 'bg-purple-400',
+  },
+  NEBUTINOS: {
+    label: 'Nebūtinos',
+    emoji: '🛍️',
+    color: 'text-rose-700',
+    bg: 'bg-rose-50',
+    border: 'border-rose-200',
+    bar: 'bg-rose-400',
+  },
+  BOLT_WOLT: {
+    label: 'Bolt / Wolt',
+    emoji: '🛵',
+    color: 'text-teal-700',
+    bg: 'bg-teal-50',
+    border: 'border-teal-200',
+    bar: 'bg-teal-400',
+  },
+  KITOS: {
+    label: 'Kitos',
+    emoji: '📦',
+    color: 'text-stone-700',
+    bg: 'bg-stone-100',
+    border: 'border-stone-200',
+    bar: 'bg-stone-400',
+  },
+};
