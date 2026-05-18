@@ -7,310 +7,200 @@ import { calculateFoodBudget } from '../utils/budgetUtils';
 import type { FoodBudgetStatus } from '../utils/budgetUtils';
 import axios from 'axios';
 
-const CATEGORIES: ExpenseCategory[] = ['MAISTAS', 'KURAS', 'RUBAI', 'NEBUTINOS', 'BOLT_WOLT', 'KITOS'];
+const CATEGORIES: ExpenseCategory[] = ['MAISTAS','KURAS','RUBAI','NEBUTINOS','BOLT_WOLT','KITOS'];
+
+const CAT_DOTS: Record<ExpenseCategory, string> = {
+  MAISTAS:   '#0b0d10',
+  KURAS:     '#2A6FDB',
+  RUBAI:     '#7a5fb0',
+  NEBUTINOS: '#8b919c',
+  BOLT_WOLT: '#1f8a5b',
+  KITOS:     '#a07b2c',
+};
 
 export default function CreateRecord() {
   const navigate = useNavigate();
   const [category, setCategory] = useState<ExpenseCategory | null>(null);
-  const [amount, setAmount] = useState('');
-  const [note, setNote] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [amount, setAmount]     = useState('');
+  const [note, setNote]         = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState('');
+  const [success, setSuccess]   = useState(false);
   const [budgetStatus, setBudgetStatus] = useState<FoodBudgetStatus | null>(null);
 
   const now = new Date();
 
-  // Užkrauti maisto biudžeto statusą
   useEffect(() => {
-    const load = async () => {
+    (async () => {
       try {
         const [expenses, profile] = await Promise.all([
           expensesApi.getExpenses(now.getMonth() + 1, now.getFullYear()),
           profileApi.getProfile(),
         ]);
-        const status = calculateFoodBudget(
-          expenses.expenses,
-          profile.foodDailyLimit,
-          profile.foodMonthlyLimit,
-          now.getMonth() + 1,
-          now.getFullYear()
-        );
-        setBudgetStatus(status);
-      } catch {
-        // silent — biudžeto info neprivaloma
-      }
-    };
-    load();
+        setBudgetStatus(calculateFoodBudget(expenses.expenses, profile.foodDailyLimit, profile.foodMonthlyLimit, now.getMonth() + 1, now.getFullYear()));
+      } catch { /* silent */ }
+    })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!category) {
-      setError('Pasirinkite išlaidų kategoriją');
-      return;
-    }
-
-    const parsedAmount = parseFloat(amount.replace(',', '.'));
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      setError('Įveskite teisingą sumą');
-      return;
-    }
-
-    setError('');
-    setLoading(true);
-
+    if (!category) { setError('Select a category'); return; }
+    const parsed = parseFloat(amount.replace(',', '.'));
+    if (isNaN(parsed) || parsed <= 0) { setError('Enter a valid amount'); return; }
+    setError(''); setLoading(true);
     try {
-      await expensesApi.createExpense({
-        category,
-        amount: parsedAmount,
-        note: note.trim() || undefined,
-      });
+      await expensesApi.createExpense({ category, amount: parsed, note: note.trim() || undefined });
       setSuccess(true);
       setTimeout(() => navigate('/'), 1200);
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.error || 'Klaida. Bandykite dar kartą.');
-      } else {
-        setError('Netikėta klaida. Bandykite dar kartą.');
-      }
-    } finally {
-      setLoading(false);
-    }
+      if (axios.isAxiosError(err)) setError(err.response?.data?.error || 'Something went wrong.');
+      else setError('Unexpected error. Try again.');
+    } finally { setLoading(false); }
   };
 
   if (success) {
     return (
-      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4">
-        <div className="text-center animate-slide-up">
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+      <div style={{ minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }} className="anim-up">
+          <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(31,138,91,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="var(--x-pos)" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 13l4 4L19 7"/>
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-stone-900 mb-2">Išlaida įrašyta!</h2>
-          <p className="text-stone-500">Nukreipiama į pradžią...</p>
+          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--x-ink)' }}>Expense saved</div>
+          <div style={{ fontSize: 13, color: 'var(--x-mid)', marginTop: 4 }}>Redirecting…</div>
         </div>
       </div>
     );
   }
 
+  const parsedAmt = parseFloat(amount.replace(',', '.'));
+  const showSummary = category && !isNaN(parsedAmt) && parsedAmt > 0;
+
   return (
-    <div className="min-h-[calc(100vh-4rem)] py-8 px-4">
-      <div className="max-w-xl mx-auto animate-slide-up">
-        {/* Header */}
-        <div className="mb-6">
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-1.5 text-stone-500 hover:text-stone-700 text-sm font-medium mb-4 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Grįžti atgal
-          </button>
-          <h1 className="text-2xl sm:text-3xl font-bold text-stone-900">Nauja išlaida</h1>
-          <p className="text-stone-500 mt-1 text-sm sm:text-base">
-            Įrašykite šiandienos išlaidą — data bus nustatyta automatiškai
-          </p>
+    <div style={{ padding: '28px 28px 48px', maxWidth: 560, margin: '0 auto' }}>
+
+      {/* Header */}
+      <div style={{ marginBottom: 24 }}>
+        <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 13, color: 'var(--x-mid)', textDecoration: 'none', marginBottom: 16 }}>
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          Back
+        </Link>
+        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600, letterSpacing: -0.3 }}>New expense</h1>
+        <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--x-mid)' }}>Date is set automatically</p>
+      </div>
+
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+        {/* Category */}
+        <div className="x-card">
+          <div style={{ fontSize: 11, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500, marginBottom: 14 }}>
+            1 · Category
+          </div>
+
+          {/* Budget warnings */}
+          {budgetStatus?.isMonthlyExceeded && (
+            <div style={{ background: 'rgba(193,75,58,.07)', border: '1px solid rgba(193,75,58,.2)', borderRadius: 9, padding: '10px 14px', marginBottom: 12, fontSize: 13, color: 'var(--x-neg)' }}>
+              ⛔ Monthly food budget exceeded. Food expenses are blocked.
+            </div>
+          )}
+          {budgetStatus?.isWeeklyExceeded && !budgetStatus.isMonthlyExceeded && (
+            <div style={{ background: 'rgba(193,75,58,.06)', border: '1px solid rgba(193,75,58,.15)', borderRadius: 9, padding: '10px 14px', marginBottom: 12, fontSize: 13, color: 'var(--x-neg)' }}>
+              🔴 Weekly food budget exceeded. Next week's limit is reduced.
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 9 }}>
+            {CATEGORIES.map(cat => {
+              const meta    = CATEGORY_META[cat];
+              const dot     = CAT_DOTS[cat];
+              const selected = category === cat;
+              const blocked  = cat === 'MAISTAS' && !!budgetStatus?.isMonthlyExceeded;
+              return (
+                <button key={cat} type="button" disabled={blocked}
+                  onClick={() => { if (!blocked) { setCategory(cat); setError(''); } }}
+                  style={{
+                    position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7,
+                    padding: '14px 10px', borderRadius: 11, cursor: blocked ? 'not-allowed' : 'pointer',
+                    border: selected ? `2px solid ${dot}` : '1px solid var(--x-hair)',
+                    background: selected ? `${dot}0d` : 'var(--x-bg)',
+                    opacity: blocked ? .45 : 1,
+                    transition: 'all .12s', fontFamily: 'inherit',
+                  }}>
+                  {selected && (
+                    <span style={{ position: 'absolute', top: 7, right: 7, width: 14, height: 14, borderRadius: 7, background: dot, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7"/></svg>
+                    </span>
+                  )}
+                  <span style={{ fontSize: 22 }}>{meta.emoji}</span>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: selected ? dot : 'var(--x-ink-2)', textAlign: 'center', lineHeight: 1.2 }}>{meta.label}</span>
+                  {blocked && <span style={{ fontSize: 10, color: 'var(--x-neg)' }}>Blocked</span>}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Category Selection */}
-          <div className="card">
-            <h2 className="text-base font-bold text-stone-800 mb-4 flex items-center gap-2">
-              <span className="w-7 h-7 bg-orange-100 rounded-lg flex items-center justify-center text-sm">1</span>
-              Pasirinkite kategoriją
-            </h2>
-
-            {/* Maisto biudžeto įspėjimas virš kortelių */}
-            {budgetStatus && category === 'MAISTAS' && budgetStatus.isWeeklyNearLimit && !budgetStatus.isMonthlyExceeded && (
-              <div className="mb-3 bg-amber-50 border border-amber-300 rounded-xl p-3 flex items-start gap-2 animate-fade-in">
-                <span className="flex-shrink-0">⚠️</span>
-                <div>
-                  <p className="text-sm font-semibold text-amber-800">Savaitės maisto biudžetas beveik baigtas!</p>
-                  <p className="text-xs text-amber-700 mt-0.5">
-                    Likę {budgetStatus.weeklyRemaining.toFixed(2)} € iš {budgetStatus.currentWeekBudget.toFixed(2)} €.
-                    Perkūrus šią ribą, kitos savaitės biudžetas sumažės.
-                  </p>
-                </div>
-              </div>
-            )}
-            {budgetStatus && budgetStatus.isWeeklyExceeded && !budgetStatus.isMonthlyExceeded && (category === 'MAISTAS' || category === null) && (
-              <div className="mb-3 bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2 animate-fade-in">
-                <span className="flex-shrink-0">🔴</span>
-                <p className="text-sm font-medium text-red-700">
-                  Savaitės maisto biudžetas viršytas. Kitos savaitės limitas jau sumažintas.
-                </p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
-              {CATEGORIES.map((cat) => {
-                const meta = CATEGORY_META[cat];
-                const selected = category === cat;
-                const isBlocked = cat === 'MAISTAS' && budgetStatus?.isMonthlyExceeded;
-
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    disabled={isBlocked}
-                    onClick={() => { if (!isBlocked) { setCategory(cat); setError(''); } }}
-                    title={isBlocked ? 'Mėnesinis maisto limitas viršytas' : undefined}
-                    className={`relative flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl border-2 transition-all duration-200
-                      ${isBlocked
-                        ? 'bg-stone-50 border-stone-100 opacity-50 cursor-not-allowed'
-                        : selected
-                        ? `${meta.bg} ${meta.border} shadow-sm scale-[1.02]`
-                        : 'bg-white border-stone-100 hover:border-stone-200 hover:bg-stone-50'
-                      }`}
-                  >
-                    {isBlocked && (
-                      <span className="absolute top-1.5 right-1.5 text-base">🔒</span>
-                    )}
-                    {selected && !isBlocked && (
-                      <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center">
-                        <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </span>
-                    )}
-                    <span className="text-2xl sm:text-3xl">{meta.emoji}</span>
-                    <span className={`text-xs sm:text-sm font-semibold ${isBlocked ? 'text-stone-400' : selected ? meta.color : 'text-stone-600'}`}>
-                      {meta.label}
-                    </span>
-                    {isBlocked && (
-                      <span className="text-xs text-red-400 font-medium">Limitas viršytas</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Blokavimo paaiškinimas */}
-            {budgetStatus?.isMonthlyExceeded && (
-              <div className="mt-3 bg-red-50 border border-red-200 rounded-xl p-3">
-                <p className="text-sm font-semibold text-red-700 flex items-center gap-1.5">
-                  ⛔ Mėnesinis maisto limitas viršytas
-                </p>
-                <p className="text-xs text-red-600 mt-1">
-                  Išleista {budgetStatus.monthlyFoodSpent.toFixed(2)} € iš {budgetStatus.monthlyLimit} €.
-                  Galite keisti limitą profilio skiltyje (tik pirmą mėnesio savaitę).
-                </p>
-                <Link to="/profile" className="inline-block mt-1.5 text-xs font-semibold text-orange-600 hover:underline">
-                  Eiti į profilį →
-                </Link>
-              </div>
-            )}
+        {/* Amount */}
+        <div className="x-card">
+          <div style={{ fontSize: 11, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500, marginBottom: 14 }}>
+            2 · Amount
           </div>
-
-          {/* Amount */}
-          <div className="card">
-            <h2 className="text-base font-bold text-stone-800 mb-4 flex items-center gap-2">
-              <span className="w-7 h-7 bg-orange-100 rounded-lg flex items-center justify-center text-sm">2</span>
-              Suma (€)
-            </h2>
-            <div className="relative">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-bold text-lg pointer-events-none">
-                €
-              </div>
-              <input
-                type="number"
-                value={amount}
-                onChange={(e) => { setAmount(e.target.value); setError(''); }}
-                placeholder="0.00"
-                min="0.01"
-                step="0.01"
-                className="input-field pl-9 text-xl font-bold text-stone-900"
-                required
-              />
-            </div>
-            {/* Quick amounts */}
-            <div className="flex gap-2 mt-3 flex-wrap">
-              {[5, 10, 20, 50, 100].map((q) => (
-                <button
-                  key={q}
-                  type="button"
-                  onClick={() => setAmount(String(q))}
-                  className={`text-sm font-semibold px-3 py-1.5 rounded-lg border transition-all
-                    ${amount === String(q)
-                      ? 'bg-orange-100 text-orange-700 border-orange-200'
-                      : 'bg-stone-50 text-stone-600 border-stone-100 hover:bg-stone-100'
-                    }`}
-                >
-                  {q} €
-                </button>
-              ))}
-            </div>
+          <div style={{ position: 'relative' }}>
+            <span className="x-mono" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 20, color: 'var(--x-mid)', pointerEvents: 'none' }}>€</span>
+            <input type="number" value={amount} min="0.01" step="0.01" placeholder="0.00"
+              onChange={e => { setAmount(e.target.value); setError(''); }}
+              className="x-input x-mono" style={{ paddingLeft: 36, fontSize: 20, fontWeight: 500, height: 50 }} />
           </div>
-
-          {/* Note (optional) */}
-          <div className="card">
-            <h2 className="text-base font-bold text-stone-800 mb-4 flex items-center gap-2">
-              <span className="w-7 h-7 bg-orange-100 rounded-lg flex items-center justify-center text-sm">3</span>
-              Pastaba
-              <span className="text-xs font-normal text-stone-400 ml-1">(neprivaloma)</span>
-            </h2>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Pvz.: Lidl pirkiniai, benzinas BMW..."
-              maxLength={200}
-              rows={2}
-              className="input-field resize-none"
-            />
-            <p className="text-xs text-stone-400 text-right mt-1">{note.length}/200</p>
+          <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+            {[5, 10, 20, 50, 100].map(q => (
+              <button key={q} type="button" onClick={() => setAmount(String(q))}
+                style={{ padding: '5px 12px', border: `1px solid ${amount === String(q) ? 'var(--x-ink)' : 'var(--x-hair)'}`, borderRadius: 7, background: amount === String(q) ? 'var(--x-ink)' : 'transparent', color: amount === String(q) ? 'var(--x-bg)' : 'var(--x-ink-2)', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'all .1s' }}>
+                {q} €
+              </button>
+            ))}
           </div>
+        </div>
 
-          {/* Error */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2 animate-fade-in">
-              <span>⚠️</span>
-              <p className="text-sm text-red-700 font-medium">{error}</p>
-            </div>
-          )}
+        {/* Note */}
+        <div className="x-card">
+          <div style={{ fontSize: 11, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500, marginBottom: 14 }}>
+            3 · Note <span style={{ fontSize: 10, textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>(optional)</span>
+          </div>
+          <textarea value={note} maxLength={200} rows={2} placeholder="e.g. Lidl groceries, fuel..."
+            onChange={e => setNote(e.target.value)}
+            className="x-textarea" />
+          <div style={{ fontSize: 11, color: 'var(--x-mid-2)', textAlign: 'right', marginTop: 4 }}>{note.length}/200</div>
+        </div>
 
-          {/* Summary before submit */}
-          {category && amount && parseFloat(amount) > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 animate-fade-in">
-              <p className="text-sm font-semibold text-amber-800 mb-1">Įrašo santrauka:</p>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-stone-600">
-                  {CATEGORY_META[category].emoji} {CATEGORY_META[category].label}
-                  {note && ` · ${note}`}
-                </span>
-                <span className="font-bold text-stone-900 text-lg">
-                  {parseFloat(amount.replace(',', '.')).toFixed(2)} €
-                </span>
-              </div>
-              <p className="text-xs text-amber-600 mt-1">
-                📅 Data bus nustatyta automatiškai ({new Date().toLocaleDateString('lt-LT')})
-              </p>
-            </div>
-          )}
-
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={loading || !category || !amount}
-            className="btn-primary w-full text-base"
-          >
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Išsaugoma...
+        {/* Summary */}
+        {showSummary && (
+          <div style={{ background: 'var(--x-accent-soft)', border: '1px solid rgba(42,111,219,.2)', borderRadius: 11, padding: '14px 18px' }} className="anim-fade">
+            <div style={{ fontSize: 11.5, color: 'var(--x-accent)', fontWeight: 500, marginBottom: 6 }}>Summary</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 13.5, color: 'var(--x-ink-2)' }}>
+                {CATEGORY_META[category!].emoji} {CATEGORY_META[category!].label}
+                {note && ` · ${note}`}
               </span>
-            ) : (
-              '💾 Išsaugoti išlaidą'
-            )}
-          </button>
-        </form>
-      </div>
+              <span className="x-mono" style={{ fontSize: 16, fontWeight: 600, color: 'var(--x-ink)' }}>
+                {parsedAmt.toFixed(2)} €
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div style={{ background: 'rgba(193,75,58,.07)', border: '1px solid rgba(193,75,58,.2)', borderRadius: 9, padding: '10px 14px', fontSize: 13, color: 'var(--x-neg)' }}>
+            ⚠ {error}
+          </div>
+        )}
+
+        <button type="submit" disabled={loading || !category || !amount} className="x-btn x-btn-primary" style={{ height: 44, fontSize: 14.5 }}>
+          {loading ? 'Saving…' : 'Save expense'}
+        </button>
+      </form>
     </div>
   );
 }

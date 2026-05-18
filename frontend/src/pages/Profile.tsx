@@ -1,5 +1,4 @@
 import { useState, useEffect, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { profileApi } from '../services/api';
 import type { UserProfile } from '../types';
@@ -7,35 +6,31 @@ import axios from 'axios';
 
 export default function Profile() {
   const { user } = useAuth();
-  const navigate = useNavigate();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState('');
+  const [loading, setLoading]   = useState(true);
+  const [saving, setSaving]     = useState(false);
+  const [saved, setSaved]       = useState(false);
+  const [error, setError]       = useState('');
 
-  // Formos state
-  const [salary, setSalary] = useState('');
-  const [foodDailyLimit, setFoodDailyLimit] = useState('');
-  const [foodMonthlyLimit, setFoodMonthlyLimit] = useState('');
+  const [salary,          setSalary]          = useState('');
+  const [foodDailyLimit,  setFoodDailyLimit]  = useState('');
+  const [foodMonthlyLimit,setFoodMonthlyLimit]= useState('');
 
-  const today = new Date().getDate();
+  const today      = new Date().getDate();
   const isFirstWeek = today <= 7;
-  const currentMonth = new Date().toLocaleDateString('lt-LT', { month: 'long' });
 
   useEffect(() => {
-    if (!user) { navigate('/'); return; }
     profileApi.getProfile()
-      .then((p) => {
+      .then(p => {
         setProfile(p);
         setSalary(p.salary != null ? String(p.salary) : '');
         setFoodDailyLimit(String(p.foodDailyLimit));
         setFoodMonthlyLimit(String(p.foodMonthlyLimit));
       })
-      .catch(() => setError('Nepavyko užkrauti profilio'))
+      .catch(() => setError('Could not load profile'))
       .finally(() => setLoading(false));
-  }, [user, navigate]);
+  }, []);
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
@@ -43,19 +38,18 @@ export default function Profile() {
     setSaving(true);
     try {
       const payload: Parameters<typeof profileApi.updateProfile>[0] = {};
-
       const parsedSalary = salary.trim() === '' ? null : parseFloat(salary);
       if (parsedSalary !== null && isNaN(parsedSalary)) {
-        setError('Neteisingas atlyginimo formatas'); setSaving(false); return;
+        setError('Invalid salary format'); setSaving(false); return;
       }
       payload.salary = parsedSalary;
 
       if (isFirstWeek) {
         const dl = parseFloat(foodDailyLimit);
         const ml = parseFloat(foodMonthlyLimit);
-        if (isNaN(dl) || dl <= 0) { setError('Neteisingas dienos limitas'); setSaving(false); return; }
-        if (isNaN(ml) || ml <= 0) { setError('Neteisingas mėnesio limitas'); setSaving(false); return; }
-        payload.foodDailyLimit = dl;
+        if (isNaN(dl) || dl <= 0) { setError('Invalid daily limit'); setSaving(false); return; }
+        if (isNaN(ml) || ml <= 0) { setError('Invalid monthly limit'); setSaving(false); return; }
+        payload.foodDailyLimit  = dl;
         payload.foodMonthlyLimit = ml;
       }
 
@@ -64,227 +58,186 @@ export default function Profile() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.error || 'Klaida išsaugant');
-      } else {
-        setError('Netikėta klaida');
-      }
-    } finally {
-      setSaving(false);
-    }
+      if (axios.isAxiosError(err)) setError(err.response?.data?.error || 'Save failed');
+      else setError('Unexpected error');
+    } finally { setSaving(false); }
   };
 
   if (loading) {
     return (
-      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-4 border-orange-400 border-t-transparent" />
+      <div style={{ minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 32, height: 32, borderRadius: '50%', border: '2.5px solid var(--x-hair)', borderTopColor: 'var(--x-accent)', animation: 'spin 0.7s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] py-8 px-4">
-      <div className="max-w-xl mx-auto animate-slide-up">
-        {/* Header */}
-        <div className="mb-6">
-          <button onClick={() => navigate('/')}
-            className="flex items-center gap-1.5 text-stone-500 hover:text-stone-700 text-sm font-medium mb-4 transition-colors">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Grįžti
-          </button>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900">Mano profilis</h1>
-          <p className="text-stone-500 text-sm mt-1">Atlyginimas ir maisto biudžeto nustatymai</p>
-        </div>
+    <div style={{ padding: '28px 28px 48px', maxWidth: 560, margin: '0 auto' }}>
 
-        <form onSubmit={handleSave} className="space-y-5">
+      {/* Header */}
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600, letterSpacing: -0.3 }}>Profile</h1>
+        <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--x-mid)' }}>Manage your account and budget settings</p>
+      </div>
 
-          {/* Account info */}
-          <div className="card">
-            <h2 className="text-base font-bold text-stone-800 mb-3 flex items-center gap-2">
-              <span className="text-xl">👤</span> Paskyra
-            </h2>
-            <div className="flex items-center gap-3 bg-stone-50 rounded-xl p-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-amber-500 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                {user?.email[0].toUpperCase()}
-              </div>
-              <div>
-                <p className="font-semibold text-stone-900 text-sm">{user?.email}</p>
-                <p className="text-xs text-stone-400">
-                  Narys nuo {profile ? new Date(profile.createdAt).toLocaleDateString('lt-LT') : '—'}
-                </p>
-              </div>
-            </div>
+      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+        {/* Account */}
+        <div className="x-card">
+          <div style={{ fontSize: 11, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500, marginBottom: 14 }}>
+            Account
           </div>
-
-          {/* Salary */}
-          <div className="card">
-            <h2 className="text-base font-bold text-stone-800 mb-1 flex items-center gap-2">
-              <span className="text-xl">💶</span> Mėnesinis atlyginimas
-            </h2>
-            <p className="text-xs text-stone-400 mb-4">Galima keisti bet kada. Naudojama išlaidų % skaičiavimui.</p>
-            <div className="relative">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-bold pointer-events-none">€</div>
-              <input
-                type="number"
-                value={salary}
-                onChange={(e) => setSalary(e.target.value)}
-                placeholder="pvz. 1500"
-                min="0"
-                step="0.01"
-                className="input-field pl-9"
-              />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--x-paper)', borderRadius: 10 }}>
+            <div style={{
+              width: 38, height: 38, borderRadius: '50%',
+              background: 'var(--x-ink)', color: 'var(--x-bg)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 15, fontWeight: 600, flexShrink: 0,
+            }}>
+              {user?.email?.[0]?.toUpperCase()}
             </div>
-            {salary && parseFloat(salary) > 0 && (
-              <p className="text-xs text-green-600 mt-2 font-medium animate-fade-in">
-                ✓ Dashboard rodys išlaidų % nuo {parseFloat(salary).toFixed(0)} € atlyginimo
-              </p>
-            )}
-          </div>
-
-          {/* Food limits */}
-          <div className={`card border-2 ${isFirstWeek ? 'border-orange-200' : 'border-stone-100'}`}>
-            <div className="flex items-start justify-between mb-1">
-              <h2 className="text-base font-bold text-stone-800 flex items-center gap-2">
-                <span className="text-xl">🍽️</span> Maisto biudžeto limitai
-              </h2>
-              {isFirstWeek ? (
-                <span className="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full flex-shrink-0">
-                  ✓ Galima keisti
-                </span>
-              ) : (
-                <span className="text-xs font-semibold text-stone-500 bg-stone-100 px-2 py-0.5 rounded-full flex-shrink-0">
-                  🔒 Užrakinta
-                </span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--x-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user?.email}
+              </div>
+              {profile && (
+                <div style={{ fontSize: 12, color: 'var(--x-mid)', marginTop: 1 }}>
+                  Member since {new Date(profile.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </div>
               )}
             </div>
-            <p className="text-xs text-stone-400 mb-4">
-              {isFirstWeek
-                ? `Pirmoji mėnesio savaitė — limitai keičiami iki 7 d.`
-                : `Limitai keičiami tik 1–7 mėnesio dieną. Dabar ${today} d. — laukite kito mėnesio.`}
-            </p>
+          </div>
+        </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-stone-600 mb-1.5">
-                  Dienos limitas (€)
-                </label>
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm pointer-events-none">€</div>
-                  <input
-                    type="number"
-                    value={foodDailyLimit}
-                    onChange={(e) => setFoodDailyLimit(e.target.value)}
-                    disabled={!isFirstWeek}
-                    min="1"
-                    max="500"
-                    step="0.5"
-                    className={`input-field pl-8 text-sm ${!isFirstWeek ? 'opacity-50 cursor-not-allowed bg-stone-50' : ''}`}
-                  />
-                </div>
-                <p className="text-xs text-stone-400 mt-1">Numatyta: 12 €</p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-stone-600 mb-1.5">
-                  Mėnesio limitas (€)
-                </label>
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm pointer-events-none">€</div>
-                  <input
-                    type="number"
-                    value={foodMonthlyLimit}
-                    onChange={(e) => setFoodMonthlyLimit(e.target.value)}
-                    disabled={!isFirstWeek}
-                    min="1"
-                    max="10000"
-                    step="1"
-                    className={`input-field pl-8 text-sm ${!isFirstWeek ? 'opacity-50 cursor-not-allowed bg-stone-50' : ''}`}
-                  />
-                </div>
-                <p className="text-xs text-stone-400 mt-1">Numatyta: 350 €</p>
-              </div>
+        {/* Salary */}
+        <div className="x-card">
+          <div style={{ fontSize: 11, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500, marginBottom: 4 }}>
+            Monthly salary
+          </div>
+          <div style={{ fontSize: 12.5, color: 'var(--x-mid)', marginBottom: 14 }}>
+            Used to calculate expense % of income. Can be updated any time.
+          </div>
+          <div style={{ position: 'relative' }}>
+            <span className="x-mono" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 18, color: 'var(--x-mid)', pointerEvents: 'none' }}>€</span>
+            <input type="number" value={salary} min="0" step="0.01" placeholder="e.g. 1500"
+              onChange={e => setSalary(e.target.value)}
+              className="x-input x-mono" style={{ paddingLeft: 34, fontSize: 18, fontWeight: 500, height: 48 }} />
+          </div>
+          {salary && parseFloat(salary) > 0 && (
+            <div style={{ fontSize: 12, color: 'var(--x-pos)', marginTop: 8, fontWeight: 500 }} className="anim-fade">
+              ✓ Dashboard will show spending as % of {parseFloat(salary).toFixed(0)} € salary
             </div>
+          )}
+        </div>
 
-            {/* Rolling budget explanation */}
-            <div className="mt-4 bg-amber-50 border border-amber-100 rounded-xl p-3">
-              <p className="text-xs font-semibold text-amber-800 mb-1">📊 Kaip veikia savaitinis biudžetas?</p>
-              <p className="text-xs text-amber-700 leading-relaxed">
-                Kiekvienos savaitės biudžetas = likusi mėnesio suma ÷ likusios savaitės.
-                Jei šią savaitę išleidote per daug — kitos savaitės biudžetas automatiškai sumažėja.
-                Jei taupėte — kita savaitė turės didesnį biudžetą.
-              </p>
+        {/* Food budget */}
+        <div className="x-card" style={{ borderColor: isFirstWeek ? 'rgba(42,111,219,.25)' : 'var(--x-hair)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <div style={{ fontSize: 11, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500 }}>
+              Food budget limits
             </div>
+            <span style={{
+              fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 20,
+              background: isFirstWeek ? 'rgba(31,138,91,.1)' : 'var(--x-paper)',
+              color: isFirstWeek ? 'var(--x-pos)' : 'var(--x-mid)',
+              border: `1px solid ${isFirstWeek ? 'rgba(31,138,91,.2)' : 'var(--x-hair)'}`,
+            }}>
+              {isFirstWeek ? '✓ Editable' : `🔒 Locked · day ${today}`}
+            </span>
+          </div>
+          <div style={{ fontSize: 12.5, color: 'var(--x-mid)', marginBottom: 16 }}>
+            {isFirstWeek
+              ? 'First week of the month — limits can be changed until day 7.'
+              : 'Limits can only be changed on days 1–7 of the month.'}
+          </div>
 
-            {/* Warning thresholds info */}
-            <div className="mt-3 space-y-1">
-              <div className="flex items-center gap-2 text-xs text-stone-500">
-                <span className="w-2 h-2 rounded-full bg-yellow-400 flex-shrink-0" />
-                Įspėjimas kai &gt;85% savaitės / mėnesio biudžeto panaudota
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label className="x-label">Daily limit (€)</label>
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--x-mid)', pointerEvents: 'none' }}>€</span>
+                <input type="number" value={foodDailyLimit} disabled={!isFirstWeek}
+                  min="1" max="500" step="0.5"
+                  onChange={e => setFoodDailyLimit(e.target.value)}
+                  className="x-input" style={{ paddingLeft: 28, opacity: isFirstWeek ? 1 : .45, cursor: isFirstWeek ? 'text' : 'not-allowed' }} />
               </div>
-              <div className="flex items-center gap-2 text-xs text-stone-500">
-                <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
-                Blokavimas kai mėnesinis maisto limitas viršytas
+              <div style={{ fontSize: 11, color: 'var(--x-mid-2)', marginTop: 4 }}>Default: 12 €</div>
+            </div>
+            <div>
+              <label className="x-label">Monthly limit (€)</label>
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--x-mid)', pointerEvents: 'none' }}>€</span>
+                <input type="number" value={foodMonthlyLimit} disabled={!isFirstWeek}
+                  min="1" max="10000" step="1"
+                  onChange={e => setFoodMonthlyLimit(e.target.value)}
+                  className="x-input" style={{ paddingLeft: 28, opacity: isFirstWeek ? 1 : .45, cursor: isFirstWeek ? 'text' : 'not-allowed' }} />
               </div>
+              <div style={{ fontSize: 11, color: 'var(--x-mid-2)', marginTop: 4 }}>Default: 350 €</div>
             </div>
           </div>
 
-          {/* Error */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2 animate-fade-in">
-              <span className="flex-shrink-0">⚠️</span>
-              <p className="text-sm text-red-700 font-medium">{error}</p>
+          {/* Rolling budget explainer */}
+          <div style={{ marginTop: 16, background: 'var(--x-accent-soft)', border: '1px solid rgba(42,111,219,.15)', borderRadius: 9, padding: '11px 14px' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--x-accent)', marginBottom: 4 }}>📊 How weekly budget works</div>
+            <div style={{ fontSize: 12, color: 'var(--x-ink-2)', lineHeight: 1.55 }}>
+              Each week's budget = remaining monthly amount ÷ remaining weeks.
+              Overspend this week → next week's budget shrinks. Save → next week gets more.
             </div>
-          )}
+          </div>
 
-          {/* Success */}
-          {saved && (
-            <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-2 animate-fade-in">
-              <span>✅</span>
-              <p className="text-sm text-green-700 font-semibold">Profilis išsaugotas sėkmingai!</p>
+          {/* Thresholds */}
+          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--x-mid)' }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#e8a020', flexShrink: 0, display: 'inline-block' }} />
+              Warning when &gt;85% of weekly / monthly budget used
             </div>
-          )}
-
-          {/* Save button */}
-          <button type="submit" disabled={saving} className="btn-primary w-full text-base">
-            {saving ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Išsaugoma...
-              </span>
-            ) : '💾 Išsaugoti pakeitimus'}
-          </button>
-        </form>
-
-        {/* Current month stats preview */}
-        {profile && (
-          <div className="mt-5 card bg-stone-50 border border-stone-100">
-            <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">
-              Dabartiniai nustatymai — {currentMonth}
-            </p>
-            <div className="grid grid-cols-3 gap-3 text-center">
-              <div>
-                <p className="text-lg font-bold text-stone-900">
-                  {profile.salary != null ? `${profile.salary.toFixed(0)} €` : '—'}
-                </p>
-                <p className="text-xs text-stone-500">Atlyginimas</p>
-              </div>
-              <div>
-                <p className="text-lg font-bold text-orange-600">{profile.foodDailyLimit} €</p>
-                <p className="text-xs text-stone-500">Dienos limitas</p>
-              </div>
-              <div>
-                <p className="text-lg font-bold text-orange-600">{profile.foodMonthlyLimit} €</p>
-                <p className="text-xs text-stone-500">Mėnesio limitas</p>
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--x-mid)' }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--x-neg)', flexShrink: 0, display: 'inline-block' }} />
+              Food expense blocked when monthly limit exceeded
             </div>
+          </div>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div style={{ background: 'rgba(193,75,58,.07)', border: '1px solid rgba(193,75,58,.2)', borderRadius: 9, padding: '10px 14px', fontSize: 13, color: 'var(--x-neg)' }}>
+            ⚠ {error}
           </div>
         )}
-      </div>
+
+        {/* Success */}
+        {saved && (
+          <div style={{ background: 'rgba(31,138,91,.07)', border: '1px solid rgba(31,138,91,.2)', borderRadius: 9, padding: '10px 14px', fontSize: 13, color: 'var(--x-pos)', fontWeight: 500 }} className="anim-fade">
+            ✓ Profile saved successfully
+          </div>
+        )}
+
+        <button type="submit" disabled={saving} className="x-btn x-btn-primary" style={{ height: 44, fontSize: 14.5 }}>
+          {saving ? 'Saving…' : 'Save changes'}
+        </button>
+      </form>
+
+      {/* Current settings summary */}
+      {profile && (
+        <div className="x-card" style={{ marginTop: 14, background: 'var(--x-paper)' }}>
+          <div style={{ fontSize: 11, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500, marginBottom: 14 }}>
+            Current settings
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0 }}>
+            {[
+              { label: 'Salary', value: profile.salary != null ? `${profile.salary.toFixed(0)} €` : '—' },
+              { label: 'Daily limit', value: `${profile.foodDailyLimit} €` },
+              { label: 'Monthly limit', value: `${profile.foodMonthlyLimit} €` },
+            ].map((item, i) => (
+              <div key={i} style={{ textAlign: 'center', padding: '4px 8px', borderRight: i < 2 ? '1px solid var(--x-hair)' : 'none' }}>
+                <div className="x-mono" style={{ fontSize: 17, fontWeight: 600, color: 'var(--x-ink)', letterSpacing: -0.5 }}>{item.value}</div>
+                <div style={{ fontSize: 11.5, color: 'var(--x-mid)', marginTop: 2 }}>{item.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,272 +3,143 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import axios from 'axios';
 
-interface FieldErrors {
-  email?: string;
-  password?: string;
-  confirmPassword?: string;
-}
+interface FieldErrors { email?: string; password?: string; confirmPassword?: string; }
 
 export default function Login() {
   const { login, register } = useAuth();
   const navigate = useNavigate();
 
-  const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [mode,            setMode]            = useState<'login' | 'register'>('login');
+  const [email,           setEmail]           = useState('');
+  const [password,        setPassword]        = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [globalError, setGlobalError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [fieldErrors,     setFieldErrors]     = useState<FieldErrors>({});
+  const [globalError,     setGlobalError]     = useState('');
+  const [loading,         setLoading]         = useState(false);
+  const [showPassword,    setShowPassword]    = useState(false);
 
-  const clearErrors = () => {
-    setFieldErrors({});
-    setGlobalError('');
-  };
+  const clearErrors = () => { setFieldErrors({}); setGlobalError(''); };
 
   const validate = (): boolean => {
-    const errors: FieldErrors = {};
-
-    if (!email.trim()) {
-      errors.email = 'El. paštas yra privalomas';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      errors.email = 'Įveskite teisingą el. pašto adresą';
-    }
-
-    if (!password) {
-      errors.password = 'Slaptažodis yra privalomas';
-    } else if (mode === 'register' && password.length < 6) {
-      errors.password = 'Slaptažodis turi būti bent 6 simbolių';
-    }
-
+    const e: FieldErrors = {};
+    if (!email.trim()) e.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = 'Enter a valid email';
+    if (!password) e.password = 'Password is required';
+    else if (mode === 'register' && password.length < 6) e.password = 'Min. 6 characters';
     if (mode === 'register') {
-      if (!confirmPassword) {
-        errors.confirmPassword = 'Pakartokite slaptažodį';
-      } else if (password !== confirmPassword) {
-        errors.confirmPassword = 'Slaptažodžiai nesutampa';
-      }
+      if (!confirmPassword) e.confirmPassword = 'Repeat your password';
+      else if (password !== confirmPassword) e.confirmPassword = "Passwords don't match";
     }
-
-    setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
+    setFieldErrors(e);
+    return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (ev: FormEvent) => {
+    ev.preventDefault();
     clearErrors();
-
     if (!validate()) return;
-
     setLoading(true);
     try {
-      if (mode === 'login') {
-        await login(email, password);
-      } else {
-        await register(email, password);
-      }
+      if (mode === 'login') await login(email, password);
+      else await register(email, password);
       navigate('/');
     } catch (err) {
       if (axios.isAxiosError(err)) {
-        const msg = err.response?.data?.error;
-        // Jei klaida susijusi su konkrečiu lauku - rodyk prie lauko
-        if (msg?.toLowerCase().includes('slaptažodis') || msg?.toLowerCase().includes('password')) {
+        const msg = err.response?.data?.error as string | undefined;
+        if (msg?.toLowerCase().includes('password') || msg?.toLowerCase().includes('slaptažodis'))
           setFieldErrors({ password: msg });
-        } else if (msg?.toLowerCase().includes('el. pašt') || msg?.toLowerCase().includes('email') || msg?.toLowerCase().includes('egzistuoja')) {
+        else if (msg?.toLowerCase().includes('email') || msg?.toLowerCase().includes('pašt') || msg?.toLowerCase().includes('egzistuoja'))
           setFieldErrors({ email: msg });
-        } else {
-          setGlobalError(msg || 'Klaida. Bandykite dar kartą.');
-        }
+        else setGlobalError(msg || 'Something went wrong. Try again.');
       } else {
-        setGlobalError('Nepavyko prisijungti prie serverio. Patikrinkite interneto ryšį.');
+        setGlobalError('Cannot connect to server.');
       }
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md animate-slide-up">
-        {/* Hero */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-orange-400 to-amber-500 rounded-2xl shadow-warm-lg mb-4">
-            <span className="text-3xl">💰</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-stone-900">
-            {mode === 'login' ? 'Sveiki sugrįžę!' : 'Pradėkite dabar'}
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--x-paper)', padding: 20 }}>
+      <div style={{ width: '100%', maxWidth: 400 }} className="anim-up">
+
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--x-ink)', color: 'var(--x-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 20, margin: '0 auto 14px', letterSpacing: -1 }}>e</div>
+          <h1 style={{ margin: 0, fontSize: 21, fontWeight: 600, letterSpacing: -0.3, color: 'var(--x-ink)' }}>
+            {mode === 'login' ? 'Welcome back' : 'Create account'}
           </h1>
-          <p className="text-stone-500 mt-1.5 text-sm sm:text-base">
-            {mode === 'login'
-              ? 'Prisijunkite prie savo išlaidų sekimo'
-              : 'Sukurkite nemokamą paskyrą'}
+          <p style={{ margin: '5px 0 0', fontSize: 13.5, color: 'var(--x-mid)' }}>
+            {mode === 'login' ? 'Sign in to Expences' : 'Start tracking your spending'}
           </p>
         </div>
 
-        {/* Card */}
-        <div className="card shadow-warm-lg">
-          {/* Mode Toggle */}
-          <div className="flex bg-stone-100 rounded-xl p-1 mb-6">
-            <button
-              onClick={() => { setMode('login'); clearErrors(); }}
-              className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${
-                mode === 'login'
-                  ? 'bg-white text-orange-600 shadow-sm'
-                  : 'text-stone-500 hover:text-stone-700'
-              }`}
-            >
-              🔑 Prisijungti
-            </button>
-            <button
-              onClick={() => { setMode('register'); clearErrors(); }}
-              className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${
-                mode === 'register'
-                  ? 'bg-white text-orange-600 shadow-sm'
-                  : 'text-stone-500 hover:text-stone-700'
-              }`}
-            >
-              ✨ Registruotis
-            </button>
+        <div className="x-card" style={{ boxShadow: 'var(--x-shadow-md)' }}>
+          {/* Toggle */}
+          <div style={{ display: 'flex', background: 'var(--x-paper)', borderRadius: 9, padding: 3, marginBottom: 20, gap: 3 }}>
+            {(['login', 'register'] as const).map(m => (
+              <button key={m} onClick={() => { setMode(m); clearErrors(); }}
+                style={{ flex: 1, padding: '8px', border: 0, borderRadius: 7, cursor: 'pointer', fontSize: 13.5, fontWeight: mode === m ? 600 : 500, fontFamily: 'inherit', background: mode === m ? 'var(--x-bg)' : 'transparent', color: mode === m ? 'var(--x-ink)' : 'var(--x-mid)', boxShadow: mode === m ? 'var(--x-shadow)' : 'none', transition: 'all .15s' }}>
+                {m === 'login' ? 'Sign in' : 'Register'}
+              </button>
+            ))}
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <form onSubmit={handleSubmit} noValidate>
             {/* Email */}
-            <div>
-              <label className="block text-sm font-semibold text-stone-700 mb-1.5">
-                El. paštas
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: undefined })); }}
-                placeholder="jusu@epastas.lt"
-                className={`input-field ${fieldErrors.email ? 'border-red-400 focus:border-red-400 focus:ring-red-100' : ''}`}
-                autoComplete="email"
-              />
-              {fieldErrors.email && (
-                <p className="mt-1.5 text-xs text-red-600 font-medium flex items-center gap-1 animate-fade-in">
-                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                  {fieldErrors.email}
-                </p>
-              )}
+            <div style={{ marginBottom: 14 }}>
+              <label className="x-label">Email</label>
+              <input type="email" value={email} placeholder="you@example.com" autoComplete="email"
+                onChange={e => { setEmail(e.target.value); setFieldErrors(p => ({ ...p, email: undefined })); }}
+                className={`x-input${fieldErrors.email ? ' error' : ''}`} />
+              {fieldErrors.email && <div style={{ fontSize: 12, color: 'var(--x-neg)', marginTop: 5 }}>⚠ {fieldErrors.email}</div>}
             </div>
 
             {/* Password */}
-            <div>
-              <label className="block text-sm font-semibold text-stone-700 mb-1.5">
-                Slaptažodis
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => { setPassword(e.target.value); setFieldErrors((p) => ({ ...p, password: undefined })); }}
-                  placeholder={mode === 'register' ? 'Min. 6 simboliai' : '••••••••'}
-                  className={`input-field pr-11 ${fieldErrors.password ? 'border-red-400 focus:border-red-400 focus:ring-red-100' : ''}`}
+            <div style={{ marginBottom: 14 }}>
+              <label className="x-label">Password</label>
+              <div style={{ position: 'relative' }}>
+                <input type={showPassword ? 'text' : 'password'} value={password}
+                  placeholder={mode === 'register' ? 'Min. 6 characters' : '••••••••'}
                   autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 transition-colors"
-                >
-                  {showPassword ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
+                  onChange={e => { setPassword(e.target.value); setFieldErrors(p => ({ ...p, password: undefined })); }}
+                  className={`x-input${fieldErrors.password ? ' error' : ''}`} style={{ paddingRight: 42 }} />
+                <button type="button" onClick={() => setShowPassword(s => !s)}
+                  style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--x-mid)', display: 'flex', padding: 2 }}>
+                  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+                    {showPassword ? <><path d="M17.94 17.94A10 10 0 0 1 12 19c-4.48 0-8.27-2.94-9.54-7a10 10 0 0 1 2.34-4.34M3 3l18 18"/></> : <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>}
+                  </svg>
                 </button>
               </div>
-              {fieldErrors.password && (
-                <p className="mt-1.5 text-xs text-red-600 font-medium flex items-center gap-1 animate-fade-in">
-                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                  {fieldErrors.password}
-                </p>
-              )}
+              {fieldErrors.password && <div style={{ fontSize: 12, color: 'var(--x-neg)', marginTop: 5 }}>⚠ {fieldErrors.password}</div>}
             </div>
 
-            {/* Confirm Password (Register only) */}
+            {/* Confirm password */}
             {mode === 'register' && (
-              <div className="animate-fade-in">
-                <label className="block text-sm font-semibold text-stone-700 mb-1.5">
-                  Pakartokite slaptažodį
-                </label>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={(e) => { setConfirmPassword(e.target.value); setFieldErrors((p) => ({ ...p, confirmPassword: undefined })); }}
-                  placeholder="••••••••"
-                  className={`input-field ${fieldErrors.confirmPassword ? 'border-red-400 focus:border-red-400 focus:ring-red-100' : ''}`}
-                  autoComplete="new-password"
-                />
-                {fieldErrors.confirmPassword && (
-                  <p className="mt-1.5 text-xs text-red-600 font-medium flex items-center gap-1 animate-fade-in">
-                    <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                    {fieldErrors.confirmPassword}
-                  </p>
-                )}
+              <div style={{ marginBottom: 14 }} className="anim-fade">
+                <label className="x-label">Confirm password</label>
+                <input type={showPassword ? 'text' : 'password'} value={confirmPassword}
+                  placeholder="••••••••" autoComplete="new-password"
+                  onChange={e => { setConfirmPassword(e.target.value); setFieldErrors(p => ({ ...p, confirmPassword: undefined })); }}
+                  className={`x-input${fieldErrors.confirmPassword ? ' error' : ''}`} />
+                {fieldErrors.confirmPassword && <div style={{ fontSize: 12, color: 'var(--x-neg)', marginTop: 5 }}>⚠ {fieldErrors.confirmPassword}</div>}
               </div>
             )}
 
-            {/* Global error (serverio klaidos) */}
             {globalError && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2 animate-fade-in">
-                <span className="text-red-500 mt-0.5 flex-shrink-0">⚠️</span>
-                <p className="text-sm text-red-700 font-medium">{globalError}</p>
+              <div style={{ background: 'rgba(193,75,58,.07)', border: '1px solid rgba(193,75,58,.18)', borderRadius: 9, padding: '10px 14px', marginBottom: 12 }}>
+                <span style={{ fontSize: 13, color: 'var(--x-neg)' }}>⚠ {globalError}</span>
               </div>
             )}
 
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary w-full mt-2"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Kraunama...
-                </span>
-              ) : mode === 'login' ? (
-                'Prisijungti →'
-              ) : (
-                'Sukurti paskyrą →'
-              )}
+            <button type="submit" disabled={loading} className="x-btn x-btn-primary" style={{ width: '100%', height: 42, fontSize: 14, marginTop: 6 }}>
+              {loading
+                ? `${mode === 'login' ? 'Signing in' : 'Creating account'}…`
+                : mode === 'login' ? 'Sign in →' : 'Create account →'}
             </button>
           </form>
-
-          {/* Features hint */}
-          {mode === 'register' && (
-            <div className="mt-5 pt-5 border-t border-stone-100 animate-fade-in">
-              <p className="text-xs text-stone-500 text-center mb-3">Ką gausite:</p>
-              <div className="grid grid-cols-2 gap-2">
-                {['🍽️ Maisto išlaidos', '⛽ Kuro išlaidos', '👗 Rūbų išlaidos', '📊 Mėnesio ataskaita'].map((f) => (
-                  <div key={f} className="flex items-center gap-1.5 text-xs text-stone-600">
-                    <span className="w-1.5 h-1.5 bg-orange-400 rounded-full flex-shrink-0" />
-                    {f}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
-        <p className="text-center text-xs text-stone-400 mt-4">
-          Jūsų duomenys yra saugūs ir šifruoti
+        <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--x-mid)', marginTop: 18 }}>
+          Your data is encrypted and stored securely.
         </p>
       </div>
     </div>

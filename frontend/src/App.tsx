@@ -1,23 +1,76 @@
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthContext, useAuthState } from './hooks/useAuth';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import CreateRecord from './pages/CreateRecord';
 import Profile from './pages/Profile';
-import Navbar from './components/Navbar';
+import Sidebar from './components/Sidebar';
+
+/** Shows once on iOS Safari when the app is not installed as PWA */
+function IOSInstallBanner() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isStandalone = ('standalone' in navigator) && (navigator as Navigator & { standalone: boolean }).standalone;
+    const dismissed = localStorage.getItem('pwa-banner-dismissed');
+    if (isIOS && !isStandalone && !dismissed) setVisible(true);
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <div style={{
+      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999,
+      background: 'var(--x-bg)', borderTop: '1px solid var(--x-hair)',
+      padding: '14px 18px 22px', boxShadow: '0 -4px 24px rgba(0,0,0,.08)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{
+          width: 44, height: 44, borderRadius: 10, background: 'var(--x-ink)',
+          color: 'var(--x-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontWeight: 700, fontSize: 22, flexShrink: 0, letterSpacing: -1,
+        }}>e</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--x-ink)', marginBottom: 3 }}>
+            Add Expences to Home Screen
+          </div>
+          <div style={{ fontSize: 12.5, color: 'var(--x-mid)', lineHeight: 1.5 }}>
+            Tap <strong style={{ color: 'var(--x-ink)' }}>Share</strong> <span style={{ fontSize: 14 }}>⎙</span> then{' '}
+            <strong style={{ color: 'var(--x-ink)' }}>"Add to Home Screen"</strong> to use it like a native app and set up Apple Pay shortcuts.
+          </div>
+        </div>
+        <button
+          onClick={() => { localStorage.setItem('pwa-banner-dismissed', '1'); setVisible(false); }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--x-mid)', padding: 4, flexShrink: 0 }}
+          aria-label="Dismiss"
+        >
+          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6 6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function App() {
   const auth = useAuthState();
 
   if (auth.loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-warm animate-pulse">
-            <span className="text-2xl">💰</span>
-          </div>
-          <div className="animate-spin rounded-full h-8 w-8 border-3 border-orange-400 border-t-transparent mx-auto" />
-        </div>
+      <div style={{
+        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'var(--x-bg)',
+      }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: '50%',
+          border: '2.5px solid var(--x-hair)',
+          borderTopColor: 'var(--x-accent)',
+          animation: 'spin 0.7s linear infinite',
+        }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
@@ -25,27 +78,29 @@ function App() {
   return (
     <AuthContext.Provider value={auth}>
       <BrowserRouter>
-        <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
-          <Navbar />
-          <main>
+        {auth.user ? (
+          <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+            <Sidebar />
+            <main style={{ flex: 1, minWidth: 0, overflow: 'auto', background: 'var(--x-paper)' }}>
+              <Routes>
+                <Route path="/"        element={<Home />} />
+                <Route path="/create"  element={<CreateRecord />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/login"   element={<Navigate to="/" replace />} />
+                <Route path="*"        element={<Navigate to="/" replace />} />
+              </Routes>
+            </main>
+          </div>
+        ) : (
+          <div style={{ minHeight: '100vh', background: 'var(--x-paper)' }}>
             <Routes>
-              <Route path="/" element={<Home />} />
-              <Route
-                path="/login"
-                element={auth.user ? <Navigate to="/" replace /> : <Login />}
-              />
-              <Route
-                path="/create"
-                element={auth.user ? <CreateRecord /> : <Navigate to="/" replace />}
-              />
-              <Route
-                path="/profile"
-                element={auth.user ? <Profile /> : <Navigate to="/" replace />}
-              />
-              <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/"      element={<Login />} />
+              <Route path="*"      element={<Navigate to="/" replace />} />
             </Routes>
-          </main>
-        </div>
+          </div>
+        )}
+        <IOSInstallBanner />
       </BrowserRouter>
     </AuthContext.Provider>
   );
