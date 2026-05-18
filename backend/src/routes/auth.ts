@@ -46,8 +46,9 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
       user: { id: user.id, email: user.email },
     });
   } catch (error) {
-    console.error('Register error:', error);
-    res.status(500).json({ error: 'Serverio klaida' });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('Register error:', msg);
+    res.status(500).json({ error: msg });
   }
 });
 
@@ -85,8 +86,9 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
       user: { id: user.id, email: user.email },
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Serverio klaida' });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('Login error:', msg);
+    res.status(500).json({ error: msg });
   }
 });
 
