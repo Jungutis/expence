@@ -5,7 +5,7 @@ import { expensesApi, profileApi } from '../services/api';
 import type { ExpensesResponse, ExpenseCategory, UserProfile, Expense } from '../types';
 import { CATEGORY_META } from '../types';
 
-// ── Category dot colors (design palette) ──────────────
+// ── Category dot colors ────────────────────────────────
 const CAT_DOTS: Record<ExpenseCategory, string> = {
   MAISTAS:   '#0b0d10',
   KURAS:     '#2A6FDB',
@@ -25,14 +25,14 @@ const fmtShort = (n: number) => n >= 1000 ? `${(n/1000).toFixed(1)}k €` : `${M
 function Ico({ d, size = 15 }: { d: React.ReactNode; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
       {d}
     </svg>
   );
 }
 
 // ── Spark bar chart ────────────────────────────────────
-function SparkBars({ days, height = 120 }: { days: { day: number; total: number }[]; height?: number }) {
+function SparkBars({ days, height = 110 }: { days: { day: number; total: number }[]; height?: number }) {
   const max = Math.max(1, ...days.map(d => d.total));
   const today = new Date().getDate();
   return (
@@ -55,25 +55,25 @@ function SparkBars({ days, height = 120 }: { days: { day: number; total: number 
 }
 
 // ── Budget ring ────────────────────────────────────────
-function BudgetRing({ spent, budget, size = 96 }: { spent: number; budget: number; size?: number }) {
-  const pct = Math.min(1, budget > 0 ? spent / budget : 0);
-  const r = (size - 14) / 2;
-  const c = 2 * Math.PI * r;
+function BudgetRing({ spent, budget, size = 88 }: { spent: number; budget: number; size?: number }) {
+  const pct  = Math.min(1, budget > 0 ? spent / budget : 0);
+  const r    = (size - 12) / 2;
+  const c    = 2 * Math.PI * r;
   const over = pct >= 1;
   return (
     <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--x-paper-2)" strokeWidth="7" />
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--x-paper-2)" strokeWidth="6" />
         <circle cx={size/2} cy={size/2} r={r} fill="none"
-          stroke={over ? 'var(--x-neg)' : 'var(--x-accent)'} strokeWidth="7"
+          stroke={over ? 'var(--x-neg)' : 'var(--x-accent)'} strokeWidth="6"
           strokeDasharray={c} strokeDashoffset={c * (1 - pct)} strokeLinecap="round"
           style={{ transition: 'stroke-dashoffset .5s ease' }} />
       </svg>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <div className="x-mono" style={{ fontSize: 17, fontWeight: 600, color: over ? 'var(--x-neg)' : 'var(--x-ink)' }}>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+        <div className="x-mono" style={{ fontSize: 16, fontWeight: 600, letterSpacing: -0.4, color: over ? 'var(--x-neg)' : 'var(--x-ink)' }}>
           {Math.round(pct * 100)}%
         </div>
-        <div style={{ fontSize: 9, color: 'var(--x-mid)', letterSpacing: .5, textTransform: 'uppercase' }}>used</div>
+        <div style={{ fontSize: 9, color: 'var(--x-mid)', letterSpacing: 0.4, textTransform: 'uppercase' }}>budget</div>
       </div>
     </div>
   );
@@ -86,8 +86,8 @@ function TxRow({ expense, onDelete }: { expense: Expense; onDelete?: () => void 
   const d    = new Date(expense.date);
   const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 0' }}>
-      <div style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--x-paper)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 16 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
+      <div style={{ width: 32, height: 32, borderRadius: 9, background: 'var(--x-paper)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 15 }}>
         {meta.emoji}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -177,7 +177,10 @@ export default function Home() {
   const dayData: { day: number; total: number }[] = [];
   if (data && isCurrentMonth) {
     for (let d = 1; d <= now.getDate(); d++) {
-      dayData.push({ day: d, total: data.expenses.filter(e => new Date(e.date).getDate() === d).reduce((s, e) => s + e.amount, 0) });
+      dayData.push({
+        day: d,
+        total: data.expenses.filter(e => new Date(e.date).getDate() === d).reduce((s, e) => s + e.amount, 0),
+      });
     }
   }
 
@@ -187,12 +190,12 @@ export default function Home() {
   if (!user) return null;
 
   return (
-    <div style={{ padding: '28px 28px 40px', maxWidth: 1080, margin: '0 auto' }}>
+    <div style={{ padding: 'var(--pulse-pad, 24px)', maxWidth: 1080, margin: '0 auto' }}>
 
       {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 22 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 19, fontWeight: 600, letterSpacing: -0.3 }}>Overview</h1>
+          <h1 style={{ margin: 0, fontSize: 15.5, fontWeight: 600, letterSpacing: -0.2 }}>Overview</h1>
           <p style={{ margin: 0, fontSize: 12.5, color: 'var(--x-mid)', marginTop: 1 }}>
             {MONTHS[selectedMonth - 1]} {selectedYear}
           </p>
@@ -201,12 +204,13 @@ export default function Home() {
 
         {/* Month switcher */}
         <div style={{ display: 'flex', alignItems: 'center', background: 'var(--x-bg)', border: '1px solid var(--x-hair)', borderRadius: 9, padding: 3, gap: 2 }}>
-          <button onClick={prevMonth} style={{ background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--x-mid)', padding: '4px 8px', borderRadius: 7, display: 'flex', alignItems: 'center' }}>
+          <button onClick={prevMonth}
+            style={{ background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--x-mid)', padding: '4px 8px', borderRadius: 7, display: 'flex', alignItems: 'center' }}>
             <Ico d={<path d="M15 18l-6-6 6-6"/>} />
           </button>
-          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--x-ink-2)', padding: '0 6px' }}>
-            {MONTHS[selectedMonth - 1]}
-            {isCurrentMonth && <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--x-accent)', fontWeight: 600, letterSpacing: .5 }}>NOW</span>}
+          <span style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--x-ink-2)', padding: '0 4px', whiteSpace: 'nowrap' }}>
+            {MONTHS[selectedMonth - 1].slice(0, 3)}
+            {isCurrentMonth && <span style={{ marginLeft: 5, fontSize: 10, color: 'var(--x-accent)', fontWeight: 600 }}>NOW</span>}
           </span>
           <button onClick={nextMonth} disabled={isCurrentMonth}
             style={{ background: 'transparent', border: 0, cursor: isCurrentMonth ? 'not-allowed' : 'pointer', color: 'var(--x-mid)', padding: '4px 8px', borderRadius: 7, display: 'flex', alignItems: 'center', opacity: isCurrentMonth ? .35 : 1 }}>
@@ -214,8 +218,9 @@ export default function Home() {
           </button>
         </div>
 
-        <Link to="/create" className="x-btn x-btn-primary" style={{ textDecoration: 'none' }}>
-          <Ico d={<path d="M12 5v14M5 12h14"/>} /> Add expense
+        <Link to="/create" className="pulse-add" style={{ textDecoration: 'none' }}>
+          <Ico d={<path d="M12 5v14M5 12h14"/>} size={14} />
+          <span className="pulse-add-label">Add expense</span>
         </Link>
       </div>
 
@@ -230,51 +235,50 @@ export default function Home() {
           <button onClick={fetchData} className="x-btn x-btn-secondary">Retry</button>
         </div>
       ) : data ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }} className="anim-up">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--pulse-gap, 14px)' }} className="anim-up">
 
           {/* ── Hero row (3 stat cards) ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+          <div className="pulse-row-3">
 
             {/* Balance / Spent */}
             <div className="x-card">
-              <div style={{ fontSize: 10.5, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500, marginBottom: 8 }}>
+              <div style={{ fontSize: 11, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500, marginBottom: 6 }}>
                 {balance !== null ? 'Balance · this month' : 'Total spent'}
               </div>
-              <div className="x-num" style={{ fontSize: 36, fontWeight: 600, letterSpacing: -1, lineHeight: 1, color: balance !== null && balance < 0 ? 'var(--x-neg)' : 'var(--x-ink)' }}>
+              <div className="x-num" style={{ fontSize: 36, fontWeight: 600, letterSpacing: -1.2, lineHeight: 1, marginTop: 4, color: balance !== null && balance < 0 ? 'var(--x-neg)' : 'var(--x-ink)' }}>
                 {balance !== null ? `${balance < 0 ? '−' : ''}${fmt(Math.abs(balance))}` : fmt(spent)}
               </div>
-              <div style={{ display: 'flex', gap: 16, marginTop: 14, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 14, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
                 {income > 0 && <>
                   <div>
-                    <div style={{ fontSize: 10.5, color: 'var(--x-mid)', marginBottom: 2 }}>Income</div>
-                    <div className="x-mono" style={{ fontSize: 13, fontWeight: 500 }}>{fmt(income)}</div>
+                    <div style={{ fontSize: 11, color: 'var(--x-mid)', marginBottom: 2 }}>Income</div>
+                    <div className="x-mono" style={{ fontSize: 13.5, fontWeight: 500 }}>{fmt(income)}</div>
                   </div>
-                  <div className="x-divider-v" style={{ height: 26, alignSelf: 'center' }} />
+                  <div className="x-divider-v" style={{ height: 26 }} />
                 </>}
                 <div>
-                  <div style={{ fontSize: 10.5, color: 'var(--x-mid)', marginBottom: 2 }}>Spent</div>
-                  <div className="x-mono" style={{ fontSize: 13, fontWeight: 500 }}>−{fmt(spent)}</div>
+                  <div style={{ fontSize: 11, color: 'var(--x-mid)', marginBottom: 2 }}>Spent</div>
+                  <div className="x-mono" style={{ fontSize: 13.5, fontWeight: 500 }}>−{fmt(spent)}</div>
                 </div>
-                <div className="x-divider-v" style={{ height: 26, alignSelf: 'center' }} />
+                <div className="x-divider-v" style={{ height: 26 }} />
                 <div>
-                  <div style={{ fontSize: 10.5, color: 'var(--x-mid)', marginBottom: 2 }}>Transactions</div>
-                  <div className="x-mono" style={{ fontSize: 13, fontWeight: 500 }}>{data.expenses.length}</div>
+                  <div style={{ fontSize: 11, color: 'var(--x-mid)', marginBottom: 2 }}>Transactions</div>
+                  <div className="x-mono" style={{ fontSize: 13.5, fontWeight: 500 }}>{data.expenses.length}</div>
                 </div>
               </div>
             </div>
 
             {/* Food budget */}
-            <div className="x-card" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div className="x-card" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 10.5, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500, marginBottom: 8 }}>
-                  Food budget
+                <div style={{ fontSize: 11, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500, marginBottom: 6 }}>
+                  Budget
                 </div>
-                <div className="x-num" style={{ fontSize: 24, fontWeight: 600, letterSpacing: -0.5 }}>
-                  {fmt(foodLeft)}
-                  <span style={{ fontSize: 13, color: 'var(--x-mid)', fontWeight: 400 }}> left</span>
+                <div className="x-num" style={{ fontSize: 22, fontWeight: 600, letterSpacing: -0.4 }}>
+                  {fmt(foodLeft)}<span style={{ fontSize: 13, color: 'var(--x-mid)', fontWeight: 400 }}> left</span>
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--x-mid)', marginTop: 5 }}>
-                  Daily: <span className="x-mono" style={{ color: 'var(--x-ink-2)' }}>{fmt(profile?.foodDailyLimit ?? 0)}</span>
+                <div style={{ fontSize: 12, color: 'var(--x-mid)', marginTop: 4 }}>
+                  Safe daily: <span className="x-mono" style={{ color: 'var(--x-ink-2)' }}>{fmt(profile?.foodDailyLimit ?? 0)}</span>
                 </div>
                 <div style={{ height: 5, borderRadius: 3, background: 'var(--x-paper-2)', marginTop: 10, overflow: 'hidden' }}>
                   <div style={{
@@ -285,18 +289,18 @@ export default function Home() {
                   }} />
                 </div>
               </div>
-              <BudgetRing spent={foodSpent} budget={foodLimit} size={90} />
+              <BudgetRing spent={foodSpent} budget={foodLimit} size={88} />
             </div>
 
             {/* Daily avg */}
             <div className="x-card">
-              <div style={{ fontSize: 10.5, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500, marginBottom: 8 }}>
+              <div style={{ fontSize: 11, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500, marginBottom: 6 }}>
                 Daily average
               </div>
-              <div className="x-num" style={{ fontSize: 36, fontWeight: 600, letterSpacing: -1, lineHeight: 1 }}>
+              <div className="x-num" style={{ fontSize: 36, fontWeight: 600, letterSpacing: -1.2, lineHeight: 1, marginTop: 4 }}>
                 {fmt(dailyAvg)}
               </div>
-              <div style={{ fontSize: 12, color: 'var(--x-mid)', marginTop: 10 }}>
+              <div style={{ fontSize: 12, color: 'var(--x-mid)', marginTop: 12 }}>
                 Projected: <span className="x-mono" style={{ color: income > 0 && projected > income ? 'var(--x-neg)' : 'var(--x-ink-2)' }}>{fmtShort(projected)}</span>
               </div>
               <div style={{ fontSize: 12, color: 'var(--x-mid)', marginTop: 3 }}>
@@ -306,32 +310,39 @@ export default function Home() {
           </div>
 
           {/* ── Middle row (chart + recent) ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: dayData.length > 0 ? '1.5fr 1fr' : '1fr', gap: 14 }}>
+          <div className="pulse-row-2">
 
-            {dayData.length > 0 && (
+            {dayData.length > 0 ? (
               <div className="x-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16, gap: 10 }}>
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: -0.2 }}>Daily spending</div>
+                    <div style={{ fontSize: 14.5, fontWeight: 600, letterSpacing: -0.2 }}>Daily spending</div>
                     <div style={{ fontSize: 12, color: 'var(--x-mid)', marginTop: 2 }}>
                       Avg <span className="x-mono" style={{ color: 'var(--x-ink-2)' }}>{fmt(dailyAvg)}</span>
-                      {' · '}Projected <span className="x-mono" style={{ color: 'var(--x-ink-2)' }}>{fmtShort(projected)}</span>
+                      {' · '}Proj <span className="x-mono" style={{ color: 'var(--x-ink-2)' }}>{fmtShort(projected)}</span>
                     </div>
                   </div>
                 </div>
-                <SparkBars days={dayData} height={120} />
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 7, fontSize: 10.5, color: 'var(--x-mid)' }}>
-                  <span>{MONTHS[selectedMonth - 1]} 1</span>
-                  <span>today · {MONTHS[selectedMonth - 1]} {now.getDate()}</span>
+                <SparkBars days={dayData} height={110} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, color: 'var(--x-mid)' }}>
+                  <span>{MONTHS[selectedMonth - 1].slice(0,3)} 1</span>
+                  <span>today · {now.getDate()}</span>
+                </div>
+              </div>
+            ) : (
+              /* placeholder card when no current-month data */
+              <div className="x-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 160 }}>
+                <div style={{ textAlign: 'center', color: 'var(--x-mid)', fontSize: 13 }}>
+                  No chart data for past months
                 </div>
               </div>
             )}
 
-            {/* Recent */}
+            {/* Recent transactions */}
             <div className="x-card" style={{ padding: 0 }}>
               <div style={{ padding: '18px 20px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: -0.2 }}>Recent</div>
-                <Link to="/create" style={{ fontSize: 11.5, color: 'var(--x-mid)', textDecoration: 'none' }}>+ Add →</Link>
+                <div style={{ fontSize: 14.5, fontWeight: 600, letterSpacing: -0.2 }}>Recent</div>
+                <Link to="/create" style={{ fontSize: 12, color: 'var(--x-mid)', textDecoration: 'none' }}>+ Add →</Link>
               </div>
               <div className="x-divider" />
               {recent.length === 0 ? (
@@ -348,19 +359,28 @@ export default function Home() {
                   ))}
                 </div>
               )}
+              <div style={{ padding: '10px 20px 18px' }}>
+                <Link to="/create" style={{
+                  display: 'block', textAlign: 'center', padding: '9px',
+                  borderRadius: 9, border: '1px dashed var(--x-hair-2)',
+                  color: 'var(--x-mid)', fontSize: 12.5, textDecoration: 'none',
+                }}>
+                  + Quick add
+                </Link>
+              </div>
             </div>
           </div>
 
           {/* ── Bottom row (categories + insights) ── */}
           {topCats.length > 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 14 }}>
+            <div className="pulse-row-2">
               {/* Categories */}
               <div className="x-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: -0.2 }}>Categories</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
+                  <div style={{ fontSize: 14.5, fontWeight: 600, letterSpacing: -0.2 }}>Categories</div>
                   <div style={{ fontSize: 12, color: 'var(--x-mid)' }}>{topCats.length} active</div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {topCats.map(({ cat, total }) => {
                     const meta = CATEGORY_META[cat];
                     const dot  = CAT_DOTS[cat];
@@ -369,12 +389,12 @@ export default function Home() {
                       <div key={cat}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ width: 7, height: 7, borderRadius: 4, background: dot, flexShrink: 0 }} />
+                            <span style={{ width: 8, height: 8, borderRadius: 4, background: dot, flexShrink: 0 }} />
                             <span style={{ fontSize: 13, color: 'var(--x-ink-2)' }}>{meta.label}</span>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                            <span className="x-mono" style={{ fontSize: 13, fontWeight: 500 }}>−{fmt(total)}</span>
-                            <span className="x-mono" style={{ fontSize: 11, color: 'var(--x-mid)', minWidth: 28, textAlign: 'right' }}>{Math.round(pct)}%</span>
+                            <span className="x-mono" style={{ fontSize: 12.5, fontWeight: 500 }}>−{fmt(total)}</span>
+                            <span className="x-mono" style={{ fontSize: 11, color: 'var(--x-mid)', minWidth: 30, textAlign: 'right' }}>{Math.round(pct)}%</span>
                           </div>
                         </div>
                         <div style={{ height: 6, background: 'var(--x-paper-2)', borderRadius: 3, overflow: 'hidden' }}>
@@ -388,16 +408,16 @@ export default function Home() {
 
               {/* Insights */}
               <div className="x-card">
-                <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: -0.2, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 7 }}>
+                <div style={{ fontSize: 14.5, fontWeight: 600, letterSpacing: -0.2, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 7 }}>
                   <span style={{ color: 'var(--x-accent)' }}>
                     <Ico d={<><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.2 1 2v1.3h6V16.7c0-.8.4-1.5 1-2A7 7 0 0 0 12 2z"/><path d="M9 18h6M10 22h4"/></>} />
                   </span>
                   Insights
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {topCats[0] && (
-                    <div style={{ display: 'flex', gap: 11 }}>
-                      <div style={{ width: 3, borderRadius: 2, background: 'var(--x-neg)', flexShrink: 0 }} />
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <div style={{ width: 3, borderRadius: 2, background: 'var(--x-neg)', flexShrink: 0, alignSelf: 'stretch' }} />
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>Top: {CATEGORY_META[topCats[0].cat].label}</div>
                         <div style={{ fontSize: 12, color: 'var(--x-mid)', lineHeight: 1.55 }}>
@@ -407,8 +427,8 @@ export default function Home() {
                     </div>
                   )}
                   {income > 0 && (
-                    <div style={{ display: 'flex', gap: 11 }}>
-                      <div style={{ width: 3, borderRadius: 2, background: projected <= income ? 'var(--x-pos)' : 'var(--x-neg)', flexShrink: 0 }} />
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <div style={{ width: 3, borderRadius: 2, background: projected <= income ? 'var(--x-pos)' : 'var(--x-neg)', flexShrink: 0, alignSelf: 'stretch' }} />
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>
                           {projected <= income ? 'On track' : 'Over budget'}
@@ -422,8 +442,8 @@ export default function Home() {
                     </div>
                   )}
                   {foodSpent >= foodLimit * 0.85 && foodLimit > 0 && (
-                    <div style={{ display: 'flex', gap: 11 }}>
-                      <div style={{ width: 3, borderRadius: 2, background: foodSpent >= foodLimit ? 'var(--x-neg)' : 'var(--x-accent)', flexShrink: 0 }} />
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <div style={{ width: 3, borderRadius: 2, background: foodSpent >= foodLimit ? 'var(--x-neg)' : 'var(--x-accent)', flexShrink: 0, alignSelf: 'stretch' }} />
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>
                           {foodSpent >= foodLimit ? 'Food limit reached' : 'Food limit near'}
@@ -435,8 +455,8 @@ export default function Home() {
                     </div>
                   )}
                   {!profile?.salary && (
-                    <div style={{ display: 'flex', gap: 11 }}>
-                      <div style={{ width: 3, borderRadius: 2, background: 'var(--x-accent)', flexShrink: 0 }} />
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <div style={{ width: 3, borderRadius: 2, background: 'var(--x-accent)', flexShrink: 0, alignSelf: 'stretch' }} />
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>Set your income</div>
                         <div style={{ fontSize: 12, color: 'var(--x-mid)', lineHeight: 1.55 }}>
@@ -450,11 +470,11 @@ export default function Home() {
             </div>
           )}
 
-          {/* ── Extended transaction list ── */}
+          {/* ── Full transaction list (beyond first 6) ── */}
           {rest.length > 0 && (
             <div className="x-card" style={{ padding: 0 }}>
               <div style={{ padding: '16px 20px 12px' }}>
-                <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: -0.2 }}>
+                <div style={{ fontSize: 14.5, fontWeight: 600, letterSpacing: -0.2 }}>
                   All transactions <span style={{ fontWeight: 400, color: 'var(--x-mid)', fontSize: 13 }}>({data.expenses.length})</span>
                 </div>
               </div>
@@ -474,7 +494,7 @@ export default function Home() {
           {data.expenses.length === 0 && (
             <div className="x-card" style={{ textAlign: 'center', padding: 56 }}>
               <div style={{ fontSize: 36, marginBottom: 12 }}>📭</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--x-ink)', marginBottom: 6 }}>No expenses this month</div>
+              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>No expenses this month</div>
               <div style={{ fontSize: 13, color: 'var(--x-mid)', marginBottom: 20 }}>Start tracking your spending.</div>
               <Link to="/create" className="x-btn x-btn-primary" style={{ textDecoration: 'none' }}>Add first expense</Link>
             </div>

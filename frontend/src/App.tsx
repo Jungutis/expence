@@ -7,13 +7,14 @@ import CreateRecord from './pages/CreateRecord';
 import Profile from './pages/Profile';
 import Sidebar from './components/Sidebar';
 
-/** Shows once on iOS Safari when the app is not installed as PWA */
+/** One-time banner on iOS Safari: prompt user to install as PWA */
 function IOSInstallBanner() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    const isStandalone = ('standalone' in navigator) && (navigator as Navigator & { standalone: boolean }).standalone;
+    const isStandalone = ('standalone' in navigator) &&
+      (navigator as Navigator & { standalone: boolean }).standalone;
     const dismissed = localStorage.getItem('pwa-banner-dismissed');
     if (isIOS && !isStandalone && !dismissed) setVisible(true);
   }, []);
@@ -38,7 +39,7 @@ function IOSInstallBanner() {
           </div>
           <div style={{ fontSize: 12.5, color: 'var(--x-mid)', lineHeight: 1.5 }}>
             Tap <strong style={{ color: 'var(--x-ink)' }}>Share</strong> <span style={{ fontSize: 14 }}>⎙</span> then{' '}
-            <strong style={{ color: 'var(--x-ink)' }}>"Add to Home Screen"</strong> to use it like a native app and set up Apple Pay shortcuts.
+            <strong style={{ color: 'var(--x-ink)' }}>"Add to Home Screen"</strong> — then set up the Apple Pay shortcut.
           </div>
         </div>
         <button
@@ -79,17 +80,21 @@ function App() {
     <AuthContext.Provider value={auth}>
       <BrowserRouter>
         {auth.user ? (
-          <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-            <Sidebar />
-            <main style={{ flex: 1, minWidth: 0, overflow: 'auto', background: 'var(--x-paper)' }}>
-              <Routes>
-                <Route path="/"        element={<Home />} />
-                <Route path="/create"  element={<CreateRecord />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/login"   element={<Navigate to="/" replace />} />
-                <Route path="*"        element={<Navigate to="/" replace />} />
-              </Routes>
-            </main>
+          /* x-root is the container-query anchor; pulse-shell handles sidebar ↔ bottom-nav */
+          <div className="x-root" style={{ height: '100vh' }}>
+            <div className="pulse-shell">
+              <Sidebar />
+              <main className="pulse-main">
+                <Routes>
+                  <Route path="/"        element={<Home />} />
+                  <Route path="/create"  element={<CreateRecord />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/login"   element={<Navigate to="/" replace />} />
+                  <Route path="*"        element={<Navigate to="/" replace />} />
+                </Routes>
+              </main>
+            </div>
+            <IOSInstallBanner />
           </div>
         ) : (
           <div style={{ minHeight: '100vh', background: 'var(--x-paper)' }}>
@@ -100,7 +105,6 @@ function App() {
             </Routes>
           </div>
         )}
-        <IOSInstallBanner />
       </BrowserRouter>
     </AuthContext.Provider>
   );

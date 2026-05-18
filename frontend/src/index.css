@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Design system tokens ─────────────────────────────── */
+/* ── Design tokens ────────────────────────────────────── */
 :root {
   --x-bg:          #ffffff;
   --x-paper:       #f6f7f9;
@@ -74,35 +74,6 @@ body {
   padding: 22px;
 }
 
-/* ── Nav item (sidebar) ───────────────────────────────── */
-.x-nav-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: 9px;
-  border: 0;
-  background: transparent;
-  color: var(--x-mid);
-  font-size: 13.5px;
-  font-weight: 500;
-  cursor: pointer;
-  text-decoration: none;
-  width: 100%;
-  text-align: left;
-  transition: background .1s, color .1s;
-  font-family: inherit;
-}
-.x-nav-item:hover {
-  background: var(--x-paper);
-  color: var(--x-ink-2);
-}
-.x-nav-item.active {
-  background: var(--x-paper);
-  color: var(--x-ink);
-  font-weight: 600;
-}
-
 /* ── Buttons ──────────────────────────────────────────── */
 .x-btn {
   display: inline-flex;
@@ -123,23 +94,13 @@ body {
 .x-btn:active { transform: translateY(0.5px); }
 .x-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 
-.x-btn-primary {
-  background: var(--x-ink);
-  color: var(--x-bg);
-}
+.x-btn-primary  { background: var(--x-ink); color: var(--x-bg); }
 .x-btn-primary:hover:not(:disabled) { opacity: .85; }
 
-.x-btn-secondary {
-  background: transparent;
-  color: var(--x-ink-2);
-  border: 1px solid var(--x-hair);
-}
+.x-btn-secondary { background: transparent; color: var(--x-ink-2); border: 1px solid var(--x-hair); }
 .x-btn-secondary:hover:not(:disabled) { background: var(--x-paper); border-color: var(--x-hair-2); }
 
-.x-btn-accent {
-  background: var(--x-accent);
-  color: #fff;
-}
+.x-btn-accent { background: var(--x-accent); color: #fff; }
 .x-btn-accent:hover:not(:disabled) { opacity: .88; }
 
 /* ── Input ────────────────────────────────────────────── */
@@ -208,6 +169,219 @@ body {
 .anim-up   { animation: fadeUp .22s ease both; }
 .anim-fade { animation: fadeIn .18s ease both; }
 
-/* ── Legacy compat (keeps old pages from breaking) ─────── */
-.animate-fade-in { animation: fadeIn .3s ease-out; }
+/* ── Legacy compat ────────────────────────────────────── */
+.animate-fade-in  { animation: fadeIn .3s ease-out; }
 .animate-slide-up { animation: fadeUp .3s ease-out; }
+
+
+/* ════════════════════════════════════════════════════════
+   PULSE — responsive layout (container queries)
+   The .x-root div is the container; .pulse-shell and all
+   descendants respond to its width, not the viewport.
+   ════════════════════════════════════════════════════════ */
+
+.x-root {
+  container-type: inline-size;
+  container-name: x;
+  height: 100%;
+  background: var(--x-bg);
+  color: var(--x-ink);
+}
+
+/* ── Shell (sidebar + main) ───────────────────────────── */
+.pulse-shell {
+  --pulse-pad:      24px;
+  --pulse-gap:      16px;
+  --pulse-side-w:   224px;
+  display: flex;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* ── Sidebar ──────────────────────────────────────────── */
+.pulse-side {
+  width: var(--pulse-side-w);
+  flex-shrink: 0;
+  padding: 20px 14px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--x-hair);
+  background: var(--x-bg);
+  overflow-y: auto;
+}
+
+.pulse-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 8px 20px;
+  flex-shrink: 0;
+}
+
+.pulse-brand-mark {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: var(--x-ink); color: var(--x-bg);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px; letter-spacing: -0.5px;
+  flex-shrink: 0;
+}
+
+.pulse-brand-text {
+  font-weight: 600;
+  font-size: 14.5px;
+  letter-spacing: -0.2px;
+  color: var(--x-ink);
+}
+
+/* ── Nav ──────────────────────────────────────────────── */
+.pulse-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pulse-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 0;
+  background: transparent;
+  color: var(--x-mid);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  width: 100%;
+  text-align: left;
+  transition: background .12s, color .12s;
+  font-family: inherit;
+}
+.pulse-nav-item:hover { background: var(--x-paper); color: var(--x-ink-2); }
+.pulse-nav-item.active {
+  background: var(--x-paper);
+  color: var(--x-ink);
+  font-weight: 600;
+}
+
+.pulse-nav-icon { color: inherit; display: inline-flex; flex-shrink: 0; }
+
+/* ── Sidebar footer (user + logout) ──────────────────── */
+.pulse-side-footer {
+  border-top: 1px solid var(--x-hair);
+  padding-top: 14px;
+  margin-top: 8px;
+}
+
+/* ── Main content area ────────────────────────────────── */
+.pulse-main {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  background: var(--x-paper);
+}
+
+/* ── Grid rows ────────────────────────────────────────── */
+.pulse-row-3 {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: var(--pulse-gap, 14px);
+}
+
+.pulse-row-2 {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: var(--pulse-gap, 14px);
+}
+
+/* ── Add expense button (responsive) ─────────────────── */
+.pulse-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  background: var(--x-ink);
+  color: var(--x-bg);
+  border: 0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: opacity .12s;
+}
+.pulse-add:hover { opacity: .85; }
+
+
+/* ════════════════════════════════════════════════════════
+   CONTAINER QUERY BREAKPOINTS
+   ════════════════════════════════════════════════════════ */
+
+/* ── Laptop (<1280): balance spans full width ─────────── */
+@container x (max-width: 1279px) {
+  .pulse-row-3 { grid-template-columns: 1fr 1fr; }
+  .pulse-row-3 > :first-child { grid-column: 1 / -1; }
+}
+
+/* ── Tablet (<1024): icon rail sidebar ───────────────── */
+@container x (max-width: 1023px) {
+  .pulse-shell  { --pulse-side-w: 64px; --pulse-pad: 20px; --pulse-gap: 14px; }
+  .pulse-side   { padding: 20px 8px; align-items: center; overflow: visible; }
+  .pulse-brand  { padding: 0 0 18px; justify-content: center; }
+  .pulse-brand-text  { display: none; }
+  .pulse-nav-item    { justify-content: center; padding: 10px; gap: 0; }
+  .pulse-nav-label   { display: none; }
+  .pulse-side-footer { display: none; }
+}
+
+/* ── Mobile large (<768): stack 2-col rows ───────────── */
+@container x (max-width: 767px) {
+  .pulse-shell  { --pulse-pad: 16px; --pulse-gap: 12px; }
+  .pulse-row-2  { grid-template-columns: 1fr; }
+  .pulse-row-3  { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── Mobile (<520): bottom nav bar ──────────────────── */
+@container x (max-width: 519px) {
+  .pulse-shell {
+    flex-direction: column;
+    --pulse-pad: 14px;
+    --pulse-gap: 12px;
+  }
+  .pulse-side {
+    width: 100%; height: auto; order: 2;
+    flex-direction: row; align-items: stretch;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    border-right: 0; border-top: 1px solid var(--x-hair);
+    overflow: visible;
+    background: var(--x-bg);
+  }
+  .pulse-brand       { display: none; }
+  .pulse-side-footer { display: none; }
+  .pulse-nav {
+    flex-direction: row;
+    flex: 1;
+    gap: 0;
+  }
+  .pulse-nav-item {
+    flex: 1;
+    flex-direction: column;
+    padding: 6px 4px;
+    gap: 3px;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 500;
+    border-radius: 8px;
+    width: auto;
+  }
+  .pulse-nav-label { display: inline !important; font-size: 10px; line-height: 1; }
+  .pulse-row-3, .pulse-row-2 { grid-template-columns: 1fr; }
+  .pulse-row-3 > :first-child { grid-column: auto; }
+  .pulse-add-label { display: none; }
+  .pulse-add { width: 32px; height: 32px; padding: 0; justify-content: center; }
+}

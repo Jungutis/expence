@@ -79,7 +79,7 @@ export default function CreateRecord() {
   const showSummary = category && !isNaN(parsedAmt) && parsedAmt > 0;
 
   return (
-    <div style={{ padding: '28px 28px 48px', maxWidth: 560, margin: '0 auto' }}>
+    <div style={{ padding: 'var(--pulse-pad, 24px)', paddingBottom: 'max(48px, calc(var(--pulse-pad, 24px) + 64px))', maxWidth: 560, margin: '0 auto' }}>
 
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
