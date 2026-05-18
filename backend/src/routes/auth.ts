@@ -66,13 +66,13 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
     });
 
     if (!user) {
-      res.status(401).json({ error: 'Neteisingi prisijungimo duomenys' });
+      res.status(401).json({ error: 'No account found with that email address' });
       return;
     }
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
-      res.status(401).json({ error: 'Neteisingi prisijungimo duomenys' });
+      res.status(401).json({ error: 'Incorrect password' });
       return;
     }
 
