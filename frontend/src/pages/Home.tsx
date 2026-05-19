@@ -165,12 +165,12 @@ export default function Home() {
   const daysPassed  = isCurrentMonth ? now.getDate() : daysInMonth;
   const dailyAvg    = daysPassed > 0 ? spent / daysPassed : 0;
   const projected   = dailyAvg * daysInMonth;
-  const foodSpent   = data?.byCategory.MAISTAS ?? 0;
+  const foodSpent   = data?.byCategory?.MAISTAS ?? 0;
   const foodLimit   = profile?.foodMonthlyLimit ?? 0;
   const foodLeft    = Math.max(0, foodLimit - foodSpent);
 
   const topCats = CATEGORIES
-    .map(c => ({ cat: c, total: data?.byCategory[c] ?? 0 }))
+    .map(c => ({ cat: c, total: data?.byCategory?.[c] ?? 0 }))
     .filter(x => x.total > 0)
     .sort((a, b) => b.total - a.total);
 
