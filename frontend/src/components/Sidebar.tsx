@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
@@ -34,11 +35,29 @@ const NAV = [
 export default function Sidebar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [hidden, setHidden] = useState(false);
+
+  useEffect(() => {
+    const main = document.querySelector('.pulse-main') as HTMLElement | null;
+    if (!main) return;
+
+    let lastY = main.scrollTop;
+
+    const onScroll = () => {
+      const y = main.scrollTop;
+      if (y > lastY + 6) setHidden(true);
+      else if (y < lastY - 6) setHidden(false);
+      lastY = y;
+    };
+
+    main.addEventListener('scroll', onScroll, { passive: true });
+    return () => main.removeEventListener('scroll', onScroll);
+  }, []);
 
   const handleLogout = () => { logout(); navigate('/'); };
 
   return (
-    <aside className="pulse-side">
+    <aside className={`pulse-side${hidden ? ' pulse-side--hidden' : ''}`}>
       {/* Brand mark — hidden on mobile bottom nav via CSS */}
       <div className="pulse-brand">
         <div className="pulse-brand-mark">e</div>

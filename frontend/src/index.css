@@ -362,6 +362,7 @@ body {
     height: auto;
     flex-direction: row;
     align-items: stretch;
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
     border: 1px solid var(--x-hair);
     border-radius: 20px;
@@ -397,4 +398,5 @@ body {
   .pulse-row-3 > :first-child { grid-column: auto; }
   .pulse-add-label { display: none; }
   .pulse-add { width: 40px; height: 40px; padding: 0; justify-content: center; }
+  .pulse-side--hidden { transform: translateY(calc(100% + 20px)); }
 }
