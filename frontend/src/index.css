@@ -376,13 +376,13 @@ body {
   .pulse-nav {
     flex-direction: row;
     flex: 1;
-    gap: 0;
-    justify-content: space-evenly;
+    gap: 6px;
+    justify-content: center;
   }
   .pulse-nav-item {
-    flex: 1;
+    flex: 0 0 auto;
     flex-direction: column;
-    padding: 10px 6px;
+    padding: 10px 22px;
     gap: 5px;
     justify-content: center;
     font-size: 11px;
