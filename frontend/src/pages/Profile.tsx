@@ -217,7 +217,8 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Push notifications */}
+        {/* Push notifications — mobile only */}
+        <div className="push-mobile-only">
         <div className="x-card">
           <div style={{ fontSize: 11, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500, marginBottom: 4 }}>
             Apple Pay notifikacijos
@@ -295,6 +296,7 @@ export default function Profile() {
             </div>
           )}
         </div>
+        </div>{/* end push-mobile-only */}
 
         {/* Error */}
         {error && (

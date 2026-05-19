@@ -296,6 +296,12 @@ body {
   gap: var(--pulse-gap, 14px);
 }
 
+/* ── Mobile-only sections ─────────────────────────────── */
+.push-mobile-only { display: none; }
+@container x (max-width: 519px) {
+  .push-mobile-only { display: block; }
+}
+
 /* ── Add expense button (responsive) ─────────────────── */
 .pulse-add {
   display: inline-flex;
