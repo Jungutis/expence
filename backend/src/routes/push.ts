@@ -50,7 +50,7 @@ router.post('/shortcut-token', authMiddleware, async (req: AuthRequest, res: Res
 // POST /api/push/trigger — called by iOS Shortcut, sends push to user
 // Uses X-Push-Token header (no JWT needed)
 router.post('/trigger', async (req: Request, res: Response): Promise<void> => {
-  const token = req.headers['x-push-token'] as string | undefined;
+  const token = (req.headers['x-push-token'] as string | undefined) || (req.query.token as string | undefined);
   if (!token) {
     res.status(401).json({ error: 'Missing X-Push-Token header' });
     return;
