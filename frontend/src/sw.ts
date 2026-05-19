@@ -1,3 +1,10 @@
+import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+
+declare const self: ServiceWorkerGlobalScope;
+
+cleanupOutdatedCaches();
+precacheAndRoute(self.__WB_MANIFEST);
+
 self.addEventListener('push', (event) => {
   const data = event.data?.json() ?? {};
   event.waitUntil(
@@ -15,16 +22,16 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   event.waitUntil(
-    clients
+    self.clients
       .matchAll({ type: 'window', includeUncontrolled: true })
       .then((list) => {
         for (const client of list) {
           if (client.url.includes(self.location.origin) && 'focus' in client) {
-            client.navigate('/quick-add');
-            return client.focus();
+            (client as WindowClient).navigate('/quick-add');
+            return (client as WindowClient).focus();
           }
         }
-        return clients.openWindow('/quick-add');
+        return self.clients.openWindow('/quick-add');
       })
   );
 });

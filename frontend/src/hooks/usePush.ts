@@ -20,7 +20,7 @@ export function usePush() {
       setState('unsupported');
       return;
     }
-    navigator.serviceWorker.register('/sw.js').then(async (reg) => {
+    navigator.serviceWorker.ready.then(async (reg) => {
       const existing = await reg.pushManager.getSubscription();
       if (existing) { setState('subscribed'); return; }
       const perm = Notification.permission;
@@ -33,6 +33,7 @@ export function usePush() {
     setState('loading');
     try {
       const reg = await navigator.serviceWorker.ready;
+
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(
