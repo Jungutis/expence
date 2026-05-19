@@ -60,9 +60,6 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Spacer */}
-      <div className="pulse-spacer" style={{ flex: 1 }} />
-
       {/* User + logout — hidden on tablet/mobile via CSS */}
       <div className="pulse-side-footer">
         <div style={{

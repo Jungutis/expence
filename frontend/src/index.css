@@ -373,10 +373,9 @@ body {
   .pulse-main { padding-bottom: 100px; }
   .pulse-brand       { display: none; }
   .pulse-side-footer { display: none; }
-  .pulse-spacer      { display: none; }
   .pulse-nav {
     flex-direction: row;
-    flex: 1;
+    width: 100%;
     gap: 6px;
     justify-content: center;
   }
