@@ -350,6 +350,7 @@ body {
   .pulse-shell  { --pulse-pad: 16px; --pulse-gap: 12px; }
   .pulse-row-2  { grid-template-columns: 1fr; }
   .pulse-row-3  { grid-template-columns: 1fr 1fr; }
+  .pulse-add    { display: none; }
 }
 
 /* ── Mobile (<520): fixed bottom nav bar ────────────── */
