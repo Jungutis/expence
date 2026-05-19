@@ -301,13 +301,13 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 32px;
-  padding: 0 14px;
+  height: 38px;
+  padding: 0 16px;
   background: var(--x-ink);
   color: var(--x-bg);
   border: 0;
-  border-radius: 8px;
-  font-size: 13px;
+  border-radius: 9px;
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
@@ -346,7 +346,7 @@ body {
   .pulse-row-3  { grid-template-columns: 1fr 1fr; }
 }
 
-/* ── Mobile (<520): bottom nav bar ──────────────────── */
+/* ── Mobile (<520): fixed bottom nav bar ────────────── */
 @container x (max-width: 519px) {
   .pulse-shell {
     flex-direction: column;
@@ -354,34 +354,46 @@ body {
     --pulse-gap: 12px;
   }
   .pulse-side {
-    width: 100%; height: auto; order: 2;
-    flex-direction: row; align-items: stretch;
-    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
-    border-right: 0; border-top: 1px solid var(--x-hair);
+    position: fixed;
+    bottom: 14px;
+    left: 12px;
+    right: 12px;
+    height: auto;
+    flex-direction: row;
+    align-items: stretch;
+    padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+    border: 1px solid var(--x-hair);
+    border-radius: 20px;
+    box-shadow: var(--x-shadow-md);
     overflow: visible;
     background: var(--x-bg);
+    z-index: 100;
   }
+  .pulse-main { padding-bottom: 100px; }
   .pulse-brand       { display: none; }
   .pulse-side-footer { display: none; }
   .pulse-nav {
     flex-direction: row;
     flex: 1;
     gap: 0;
+    justify-content: space-evenly;
   }
   .pulse-nav-item {
     flex: 1;
     flex-direction: column;
-    padding: 6px 4px;
-    gap: 3px;
+    padding: 10px 6px;
+    gap: 5px;
     justify-content: center;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 500;
-    border-radius: 8px;
+    border-radius: 12px;
     width: auto;
+    min-height: 56px;
   }
-  .pulse-nav-label { display: inline !important; font-size: 10px; line-height: 1; }
+  .pulse-nav-icon svg { width: 22px; height: 22px; }
+  .pulse-nav-label { display: inline !important; font-size: 11px; line-height: 1; }
   .pulse-row-3, .pulse-row-2 { grid-template-columns: 1fr; }
   .pulse-row-3 > :first-child { grid-column: auto; }
   .pulse-add-label { display: none; }
-  .pulse-add { width: 32px; height: 32px; padding: 0; justify-content: center; }
+  .pulse-add { width: 40px; height: 40px; padding: 0; justify-content: center; }
 }

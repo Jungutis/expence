@@ -203,18 +203,18 @@ export default function Home() {
         <div style={{ flex: 1 }} />
 
         {/* Month switcher */}
-        <div style={{ display: 'flex', alignItems: 'center', background: 'var(--x-bg)', border: '1px solid var(--x-hair)', borderRadius: 9, padding: 3, gap: 2 }}>
+        <div style={{ display: 'flex', alignItems: 'center', background: 'var(--x-bg)', border: '1px solid var(--x-hair)', borderRadius: 11, padding: 4, gap: 2 }}>
           <button onClick={prevMonth}
-            style={{ background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--x-mid)', padding: '4px 8px', borderRadius: 7, display: 'flex', alignItems: 'center' }}>
-            <Ico d={<path d="M15 18l-6-6 6-6"/>} />
+            style={{ background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--x-mid)', padding: '8px 12px', borderRadius: 8, display: 'flex', alignItems: 'center' }}>
+            <Ico d={<path d="M15 18l-6-6 6-6"/>} size={18} />
           </button>
-          <span style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--x-ink-2)', padding: '0 4px', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--x-ink-2)', padding: '0 6px', whiteSpace: 'nowrap' }}>
             {MONTHS[selectedMonth - 1].slice(0, 3)}
-            {isCurrentMonth && <span style={{ marginLeft: 5, fontSize: 10, color: 'var(--x-accent)', fontWeight: 600 }}>NOW</span>}
+            {isCurrentMonth && <span style={{ marginLeft: 5, fontSize: 11, color: 'var(--x-accent)', fontWeight: 600 }}>NOW</span>}
           </span>
           <button onClick={nextMonth} disabled={isCurrentMonth}
-            style={{ background: 'transparent', border: 0, cursor: isCurrentMonth ? 'not-allowed' : 'pointer', color: 'var(--x-mid)', padding: '4px 8px', borderRadius: 7, display: 'flex', alignItems: 'center', opacity: isCurrentMonth ? .35 : 1 }}>
-            <Ico d={<path d="M9 18l6-6-6-6"/>} />
+            style={{ background: 'transparent', border: 0, cursor: isCurrentMonth ? 'not-allowed' : 'pointer', color: 'var(--x-mid)', padding: '8px 12px', borderRadius: 8, display: 'flex', alignItems: 'center', opacity: isCurrentMonth ? .35 : 1 }}>
+            <Ico d={<path d="M9 18l6-6-6-6"/>} size={18} />
           </button>
         </div>
 
