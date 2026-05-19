@@ -65,7 +65,7 @@ export default function QuickAdd() {
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
               <button
-                onClick={() => navigate(-1)}
+                onClick={() => navigate('/')}
                 style={{
                   flex: 1, height: 50, borderRadius: 14, border: '1px solid var(--x-hair-2)',
                   background: 'var(--x-paper)', color: 'var(--x-ink-2)',
