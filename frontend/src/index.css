@@ -403,7 +403,7 @@ body {
   .pulse-row-3, .pulse-row-2 { grid-template-columns: 1fr; }
   .pulse-row-3 > :first-child { grid-column: auto; }
   .pulse-add-label { display: none; }
-  .pulse-add { width: 40px; height: 40px; padding: 0; justify-content: center; }
+  .pulse-add { display: none; }
 }
 
 @container x (max-width: 519px) {
