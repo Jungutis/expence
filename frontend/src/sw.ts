@@ -14,9 +14,8 @@ self.addEventListener('push', (event) => {
       icon: '/pwa-192x192.png',
       badge: '/pwa-64x64.png',
       tag: 'payment-check',
-      renotify: true,
       data: { url: '/quick-add' },
-    })
+    } as NotificationOptions & { renotify: boolean })
   );
 });
 
