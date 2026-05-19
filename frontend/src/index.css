@@ -303,6 +303,8 @@ body {
 }
 
 /* ── Add expense button (responsive) ─────────────────── */
+@media (max-width: 767px) { .pulse-add { display: none !important; } }
+
 .pulse-add {
   display: inline-flex;
   align-items: center;
