@@ -65,4 +65,12 @@ export const profileApi = {
   }): Promise<UserProfile> => api.put('/profile', data).then((r) => r.data),
 };
 
+export const pushApi = {
+  subscribe: (subscription: PushSubscriptionJSON): Promise<void> =>
+    api.post('/push/subscribe', subscription).then(() => undefined),
+
+  getShortcutToken: (): Promise<{ token: string }> =>
+    api.post('/push/shortcut-token').then((r) => r.data),
+};
+
 export default api;

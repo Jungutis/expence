@@ -1,7 +1,8 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { profileApi } from '../services/api';
+import { profileApi, pushApi } from '../services/api';
 import type { UserProfile } from '../types';
+import { usePush } from '../hooks/usePush';
 import axios from 'axios';
 
 export default function Profile() {
@@ -17,8 +18,24 @@ export default function Profile() {
   const [foodDailyLimit,  setFoodDailyLimit]  = useState('');
   const [foodMonthlyLimit,setFoodMonthlyLimit]= useState('');
 
-  const today      = new Date().getDate();
+  const today       = new Date().getDate();
   const isFirstWeek = today <= 7;
+
+  const { state: pushState, subscribe } = usePush();
+  const [shortcutToken, setShortcutToken] = useState<string | null>(null);
+  const [tokenCopied, setTokenCopied]     = useState(false);
+
+  const handleGetToken = async () => {
+    const { token } = await pushApi.getShortcutToken();
+    setShortcutToken(token);
+  };
+
+  const handleCopyToken = () => {
+    if (!shortcutToken) return;
+    navigator.clipboard.writeText(shortcutToken);
+    setTokenCopied(true);
+    setTimeout(() => setTokenCopied(false), 2000);
+  };
 
   useEffect(() => {
     profileApi.getProfile()
@@ -197,6 +214,85 @@ export default function Profile() {
               Food expense blocked when monthly limit exceeded
             </div>
           </div>
+        </div>
+
+        {/* Push notifications */}
+        <div className="x-card">
+          <div style={{ fontSize: 11, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500, marginBottom: 4 }}>
+            Apple Pay notifikacijos
+          </div>
+          <div style={{ fontSize: 12.5, color: 'var(--x-mid)', marginBottom: 14 }}>
+            Gauk klausimą „Ar susimokėjai?" po kiekvieno Wallet atidarymo.
+          </div>
+
+          {pushState === 'unsupported' && (
+            <div style={{ fontSize: 13, color: 'var(--x-mid)', padding: '10px 14px', background: 'var(--x-paper)', borderRadius: 9 }}>
+              Šis naršyklė nepalaiko push notifikacijų.
+            </div>
+          )}
+
+          {pushState === 'denied' && (
+            <div style={{ fontSize: 13, color: 'var(--x-neg)', padding: '10px 14px', background: 'rgba(193,75,58,.07)', borderRadius: 9, border: '1px solid rgba(193,75,58,.2)' }}>
+              ⚠ Notifikacijos užblokuotos. Leisk jas naršyklės nustatymuose.
+            </div>
+          )}
+
+          {(pushState === 'unsubscribed' || pushState === 'loading') && (
+            <button
+              type="button"
+              disabled={pushState === 'loading'}
+              onClick={subscribe}
+              style={{
+                width: '100%', height: 42, borderRadius: 10, border: '1px solid var(--x-hair)',
+                background: 'var(--x-paper)', color: 'var(--x-ink-2)',
+                fontSize: 13.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                opacity: pushState === 'loading' ? 0.5 : 1,
+              }}
+            >
+              {pushState === 'loading' ? 'Kraunama…' : '🔔 Aktyvuoti notifikacijas'}
+            </button>
+          )}
+
+          {pushState === 'subscribed' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ fontSize: 13, color: 'var(--x-pos)', fontWeight: 500 }}>✓ Notifikacijos aktyvuotos</div>
+              <div style={{ fontSize: 12.5, color: 'var(--x-mid)' }}>
+                2 žingsnis — sugeneruok Shortcut tokeną ir sukonfigūruok iOS Shortcuts programoje.
+              </div>
+              {!shortcutToken ? (
+                <button
+                  type="button"
+                  onClick={handleGetToken}
+                  style={{
+                    height: 40, borderRadius: 10, border: '1px solid var(--x-hair)',
+                    background: 'var(--x-paper)', color: 'var(--x-ink-2)',
+                    fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  Generuoti Shortcut tokeną
+                </button>
+              ) : (
+                <div>
+                  <div style={{ fontFamily: 'monospace', fontSize: 11, background: 'var(--x-paper)', padding: '8px 12px', borderRadius: 8, wordBreak: 'break-all', color: 'var(--x-ink-2)', marginBottom: 8, border: '1px solid var(--x-hair)' }}>
+                    {shortcutToken}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCopyToken}
+                    style={{
+                      height: 38, width: '100%', borderRadius: 10, border: '1px solid var(--x-hair)',
+                      background: tokenCopied ? 'rgba(31,138,91,.08)' : 'var(--x-paper)',
+                      color: tokenCopied ? 'var(--x-pos)' : 'var(--x-ink-2)',
+                      fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                      transition: 'all .15s',
+                    }}
+                  >
+                    {tokenCopied ? '✓ Nukopijuota!' : 'Kopijuoti tokeną'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Error */}

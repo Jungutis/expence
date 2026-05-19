@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import expenseRoutes from './routes/expenses';
 import profileRoutes from './routes/profile';
+import pushRoutes from './routes/push';
 
 dotenv.config();
 
@@ -39,6 +40,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/push', pushRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {
