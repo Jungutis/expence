@@ -37,6 +37,19 @@ export default function Profile() {
     setTimeout(() => setTokenCopied(false), 2000);
   };
 
+  const [testStatus, setTestStatus] = useState('');
+  const handleTestPush = async () => {
+    setTestStatus('Siunčiama…');
+    try {
+      const r = await pushApi.test();
+      setTestStatus(`✅ Išsiųsta į ${r.sent} įrenginį`);
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Klaida';
+      setTestStatus(`❌ ${msg}`);
+    }
+    setTimeout(() => setTestStatus(''), 4000);
+  };
+
   useEffect(() => {
     profileApi.getProfile()
       .then(p => {
@@ -255,8 +268,24 @@ export default function Profile() {
 
           {pushState === 'subscribed' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button
+                type="button"
+                onClick={handleTestPush}
+                style={{
+                  height: 40, borderRadius: 10, border: '1px solid var(--x-hair)',
+                  background: 'var(--x-paper)', color: 'var(--x-ink-2)',
+                  fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                🧪 Siųsti test notifikaciją
+              </button>
+              {testStatus && (
+                <div style={{ fontSize: 12.5, color: testStatus.startsWith('✅') ? 'var(--x-pos)' : 'var(--x-neg)' }}>
+                  {testStatus}
+                </div>
+              )}
               <div style={{ fontSize: 13, color: 'var(--x-pos)', fontWeight: 500 }}>✓ Notifikacijos aktyvuotos</div>
-              <div style={{ fontSize: 12.5, color: 'var(--x-mid)' }}>
+              <div style={{ fontSize: 12.5, color: 'var(--x-mid)', marginTop: 4 }}>
                 2 žingsnis — sugeneruok Shortcut tokeną ir sukonfigūruok iOS Shortcuts programoje.
               </div>
               {!shortcutToken ? (

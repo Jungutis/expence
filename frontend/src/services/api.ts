@@ -71,6 +71,9 @@ export const pushApi = {
 
   getShortcutToken: (): Promise<{ token: string }> =>
     api.post('/push/shortcut-token').then((r) => r.data),
+
+  test: (): Promise<{ ok: boolean; sent: number }> =>
+    api.post('/push/test').then((r) => r.data),
 };
 
 export default api;
