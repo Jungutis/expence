@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthContext, useAuthState } from './hooks/useAuth';
 import Home from './pages/Home';
@@ -58,6 +58,24 @@ function IOSInstallBanner() {
 
 function App() {
   const auth = useAuthState();
+  const shellRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const shell = shellRef.current;
+    const main = shell?.querySelector('.pulse-main') as HTMLElement | null;
+    if (!shell || !main) return;
+
+    let lastY = 0;
+    const onScroll = () => {
+      const y = main.scrollTop;
+      if (y > lastY + 6) shell.classList.add('nav-hidden');
+      else if (y < lastY - 6) shell.classList.remove('nav-hidden');
+      lastY = y;
+    };
+
+    main.addEventListener('scroll', onScroll, { passive: true });
+    return () => main.removeEventListener('scroll', onScroll);
+  }, [auth.user]);
 
   if (auth.loading) {
     return (
@@ -82,7 +100,7 @@ function App() {
         {auth.user ? (
           /* x-root is the container-query anchor; pulse-shell handles sidebar ↔ bottom-nav */
           <div className="x-root" style={{ height: '100vh' }}>
-            <div className="pulse-shell">
+            <div className="pulse-shell" ref={shellRef}>
               <Sidebar />
               <main className="pulse-main">
                 <Routes>

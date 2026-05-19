@@ -398,5 +398,8 @@ body {
   .pulse-row-3 > :first-child { grid-column: auto; }
   .pulse-add-label { display: none; }
   .pulse-add { width: 40px; height: 40px; padding: 0; justify-content: center; }
-  .pulse-side--hidden { transform: translateY(calc(100% + 20px)); }
+}
+
+@container x (max-width: 519px) {
+  .pulse-shell.nav-hidden .pulse-side { transform: translateY(calc(100% + 20px)); }
 }
