@@ -374,7 +374,7 @@ export default function Home() {
             <div className="x-card" style={{ padding: 0 }}>
               <div style={{ padding: '18px 20px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <div style={{ fontSize: 14.5, fontWeight: 600, letterSpacing: -0.2 }}>Recent</div>
-                <Link to="/create" style={{ fontSize: 12, color: 'var(--x-mid)', textDecoration: 'none' }}>+ Add →</Link>
+                <Link to="/transactions" style={{ fontSize: 12, color: 'var(--x-mid)', textDecoration: 'none' }}>View all →</Link>
               </div>
               <div className="x-divider" />
               {recent.length === 0 ? (
