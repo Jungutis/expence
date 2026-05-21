@@ -26,6 +26,7 @@ export default function CreateRecord() {
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
   const [success, setSuccess]   = useState(false);
+  const [exiting, setExiting]   = useState(false);
   const [budgetStatus, setBudgetStatus] = useState<FoodBudgetStatus | null>(null);
   const [amountTouched, setAmountTouched] = useState(false);
   const [amountError,   setAmountError]   = useState('');
@@ -84,7 +85,8 @@ export default function CreateRecord() {
     try {
       await expensesApi.createExpense({ category, amount: parsed, note: note.trim() || undefined });
       setSuccess(true);
-      setTimeout(() => navigate('/'), 1200);
+      setTimeout(() => setExiting(true), 500);
+      setTimeout(() => navigate('/'), 820);
     } catch (err) {
       if (axios.isAxiosError(err)) setError(err.response?.data?.error || 'Something went wrong.');
       else setError('Unexpected error. Try again.');
@@ -93,15 +95,27 @@ export default function CreateRecord() {
 
   if (success) {
     return (
-      <div style={{ minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }} className="anim-up">
-          <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(31,138,91,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-            <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="var(--x-pos)" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+      <div style={{
+        minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        animation: exiting ? 'successOut .32s cubic-bezier(0.4,0,1,1) both' : 'successIn .3s cubic-bezier(0,0,0.2,1) both',
+      }}>
+        <style>{`
+          @keyframes successIn  { from { opacity:0; transform:scale(.88) translateY(10px); } to { opacity:1; transform:scale(1) translateY(0); } }
+          @keyframes successOut { from { opacity:1; transform:scale(1) translateY(0); } to { opacity:0; transform:scale(.92) translateY(-8px); } }
+        `}</style>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: 68, height: 68, borderRadius: '50%',
+            background: 'rgba(31,138,91,.12)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 16px',
+            boxShadow: '0 0 0 10px rgba(31,138,91,.06)',
+          }}>
+            <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="var(--x-pos)" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 13l4 4L19 7"/>
             </svg>
           </div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--x-ink)' }}>Expense saved</div>
-          <div style={{ fontSize: 13, color: 'var(--x-mid)', marginTop: 4 }}>Redirecting…</div>
+          <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--x-ink)', letterSpacing: -0.3 }}>Saved!</div>
         </div>
       </div>
     );
