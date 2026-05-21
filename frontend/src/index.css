@@ -107,7 +107,7 @@ body {
   -webkit-font-smoothing: antialiased;
   background-color: var(--x-bg);
   background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='300'%3E%3Cpath d='M 0 80 C 200 0, 600 160, 800 80' fill='none' stroke='%231e3a5f' stroke-width='2' stroke-opacity='.09'/%3E%3Cpath d='M 0 230 C 200 150, 600 310, 800 230' fill='none' stroke='%231e3a5f' stroke-width='2' stroke-opacity='.09'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='300'%3E%3Cpath d='M 0 80 C 200 160, 600 0, 800 80' fill='none' stroke='%231e3a5f' stroke-width='2' stroke-opacity='.09'/%3E%3Cpath d='M 0 230 C 200 310, 600 150, 800 230' fill='none' stroke='%231e3a5f' stroke-width='2' stroke-opacity='.09'/%3E%3C/svg%3E"),
     linear-gradient(135deg, #ffffff 0%, #eef2f9 50%, #d8e1ee 100%);
   color: var(--x-ink);
   transition: background-color .2s ease, color .2s ease;
@@ -115,7 +115,7 @@ body {
 
 [data-theme="dark"] body {
   background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='300'%3E%3Cpath d='M 0 80 C 200 0, 600 160, 800 80' fill='none' stroke='%234a7ab5' stroke-width='2' stroke-opacity='.12'/%3E%3Cpath d='M 0 230 C 200 150, 600 310, 800 230' fill='none' stroke='%234a7ab5' stroke-width='2' stroke-opacity='.12'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='300'%3E%3Cpath d='M 0 80 C 200 160, 600 0, 800 80' fill='none' stroke='%234a7ab5' stroke-width='2' stroke-opacity='.12'/%3E%3Cpath d='M 0 230 C 200 310, 600 150, 800 230' fill='none' stroke='%234a7ab5' stroke-width='2' stroke-opacity='.12'/%3E%3C/svg%3E"),
     linear-gradient(135deg, #13151e 0%, #181c2a 50%, #1e2236 100%);
 }
 
