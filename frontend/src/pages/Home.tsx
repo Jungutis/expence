@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { expensesApi, profileApi } from '../services/api';
@@ -192,31 +192,51 @@ export default function Home() {
   };
 
   // ── Derived ──────────────────────────────────────────
-  const spent       = data?.total ?? 0;
+  // ── Derived from displayExpenses — updates instantly on delete ──
+  const spent = useMemo(
+    () => displayExpenses.reduce((s, e) => s + e.amount, 0),
+    [displayExpenses],
+  );
+
+  const byCategory = useMemo(
+    () => displayExpenses.reduce((acc, e) => {
+      acc[e.category as ExpenseCategory] = (acc[e.category as ExpenseCategory] ?? 0) + e.amount;
+      return acc;
+    }, {} as Partial<Record<ExpenseCategory, number>>),
+    [displayExpenses],
+  );
+
   const income      = profile?.salary ?? 0;
   const balance     = income > 0 ? income - spent : null;
   const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+  // Daily avg = total spent ÷ today's date (current month) or full month days (past)
   const daysPassed  = isCurrentMonth ? now.getDate() : daysInMonth;
   const dailyAvg    = daysPassed > 0 ? spent / daysPassed : 0;
   const projected   = dailyAvg * daysInMonth;
-  const foodSpent   = data?.byCategory?.MAISTAS ?? 0;
+  const foodSpent   = byCategory['MAISTAS'] ?? 0;
   const foodLimit   = profile?.foodMonthlyLimit ?? 0;
   const foodLeft    = Math.max(0, foodLimit - foodSpent);
 
-  const topCats = CATEGORIES
-    .map(c => ({ cat: c, total: data?.byCategory?.[c] ?? 0 }))
-    .filter(x => x.total > 0)
-    .sort((a, b) => b.total - a.total);
+  const topCats = useMemo(
+    () => CATEGORIES
+      .map(c => ({ cat: c, total: byCategory[c] ?? 0 }))
+      .filter(x => x.total > 0)
+      .sort((a, b) => b.total - a.total),
+    [byCategory],
+  );
 
-  const dayData: { day: number; total: number }[] = [];
-  if (data && isCurrentMonth) {
-    for (let d = 1; d <= now.getDate(); d++) {
-      dayData.push({
-        day: d,
-        total: data.expenses.filter(e => new Date(e.date).getDate() === d).reduce((s, e) => s + e.amount, 0),
-      });
-    }
-  }
+  const dayData = useMemo(() => {
+    if (!isCurrentMonth) return [];
+    return Array.from({ length: now.getDate() }, (_, i) => {
+      const day = i + 1;
+      return {
+        day,
+        total: displayExpenses
+          .filter(e => new Date(e.date).getDate() === day)
+          .reduce((s, e) => s + e.amount, 0),
+      };
+    });
+  }, [displayExpenses, isCurrentMonth, now]);
 
   const recent = displayExpenses.slice(0, 6);
 
@@ -296,7 +316,7 @@ export default function Home() {
                 <div className="x-divider-v" style={{ height: 26 }} />
                 <div>
                   <div style={{ fontSize: 11, color: 'var(--x-mid)', marginBottom: 2 }}>Transactions</div>
-                  <div className="x-mono" style={{ fontSize: 13.5, fontWeight: 500 }}>{data.expenses.length}</div>
+                  <div className="x-mono" style={{ fontSize: 13.5, fontWeight: 500 }}>{displayExpenses.length}</div>
                 </div>
               </div>
             </div>
