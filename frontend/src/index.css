@@ -4,82 +4,90 @@
 
 /* ── Design tokens ────────────────────────────────────── */
 :root {
-  /* Surfaces — warm cream */
-  --x-bg:          #f4efe2;
-  --x-paper:       #ebe5d4;
-  --x-paper-2:     #ddd5c0;
+  /* Surfaces — cool near-white */
+  --x-bg:          #fafbfd;
+  --x-paper:       #f1f3f7;
+  --x-paper-2:     #e4e8ef;
 
   /* Text */
-  --x-ink:         #14130f;
-  --x-ink-2:       #2c2922;
-  --x-mid:         #5f5b54;
-  --x-mid-2:       #8d8779;
+  --x-ink:         #14161f;
+  --x-ink-2:       #2c2f3a;
+  --x-mid:         #5f6470;
+  --x-mid-2:       #8d92a0;
 
   /* Borders */
-  --x-hair:        #d4cdb9;
-  --x-hair-2:      #bcb39e;
+  --x-hair:        #e2e6ee;
+  --x-hair-2:      #cbd1dc;
 
-  /* Accent — deep forest */
-  --x-accent:      #134237;
-  --x-accent-2:    #1f6d57;
-  --x-accent-soft: #cddcd2;
+  /* Accent — deep navy */
+  --x-accent:      #1e3a5f;
+  --x-accent-2:    #3a6094;
+  --x-accent-soft: #d4dceb;
 
   /* Warm — terracotta */
   --x-warm:        #a04d2e;
   --x-warm-soft:   #ecd0bf;
 
   /* Semantic */
-  --x-pos:         #1f6d57;
+  --x-pos:         #2e6a7a;
+  --x-pos-soft:    #d2e2e6;
   --x-neg:         #9c3a25;
+  --x-neg-soft:    #edcfc2;
 
-  /* Shadows — warm-toned */
-  --x-shadow:      0 1px 0 rgba(20,19,15,.05), 0 1px 3px rgba(20,19,15,.08);
-  --x-shadow-md:   0 4px 20px rgba(20,19,15,.10), 0 1px 3px rgba(20,19,15,.06);
+  /* Shadows */
+  --x-shadow:      0 1px 0 rgba(20,22,31,.05), 0 1px 2px rgba(20,22,31,.06);
+  --x-shadow-md:   0 4px 20px rgba(20,22,31,.10), 0 1px 3px rgba(20,22,31,.06);
 
-  /* Radius */
-  --x-radius:      13px;
+  /* Radius / spacing */
+  --x-radius:      14px;
+  --x-gap:         18px;
+  --x-pad:         20px;
+  --x-card-pad:    24px;
+  --x-row:         52px;
 
   /* ── Category colours ─────────────────────────────── */
-  --cat-food:            #a04d2e;
-  --cat-food-soft:       #ecd0bf;
-  --cat-transport:       #1f5454;
-  --cat-transport-soft:  #cad9d9;
-  --cat-housing:         #134237;
-  --cat-housing-soft:    #cddcd2;
-  --cat-entertainment:   #6d4870;
-  --cat-entertainment-soft: #ddd0de;
-  --cat-health:          #547040;
-  --cat-health-soft:     #d6dec8;
-  --cat-subscriptions:   #a07d2e;
-  --cat-subscriptions-soft: #eddfbc;
-  --cat-shopping:        #8a5258;
-  --cat-shopping-soft:   #e8d2d4;
+  --x-c-food:            #a04d2e;
+  --x-c-food-soft:       #ecd0bf;
+  --x-c-transit:         #4a6a8a;
+  --x-c-transit-soft:    #d4dde6;
+  --x-c-housing:         #1e3a5f;
+  --x-c-housing-soft:    #d4dceb;
+  --x-c-fun:             #5b5a8c;
+  --x-c-fun-soft:        #dadae6;
+  --x-c-health:          #2e6a7a;
+  --x-c-health-soft:     #d2e2e6;
+  --x-c-subs:            #a07d2e;
+  --x-c-subs-soft:       #eddfbc;
+  --x-c-shopping:        #8a5258;
+  --x-c-shopping-soft:   #e8d2d4;
 
   /* ── Gradients ────────────────────────────────────── */
-  --x-grad-warm:     linear-gradient(135deg, #eddfbc 0%, #ecd0bf 60%, #e8d2d4 100%);
-  --x-grad-warm-ink: #4a2010;
-  --x-grad-cool:     linear-gradient(135deg, #cddcd2 0%, #b6c8be 100%);
-  --x-grad-cool-ink: #0a2a23;
-  --x-grad-hero:     linear-gradient(135deg, #134237 0%, #1f6d57 50%, #a07d2e 100%);
+  --x-grad-warm:     linear-gradient(90deg, #dde5f3 0%, #b8c4dd 50%, #91a2c2 100%);
+  --x-grad-warm-ink: #0d1f3a;
+  --x-grad-cool:     linear-gradient(135deg, #d4dceb 0%, #b8c4dd 100%);
+  --x-grad-cool-ink: #0d1f3a;
+  --x-grad-hero:     linear-gradient(135deg, #1e3a5f 0%, #3a6094 50%, #6a92c6 100%);
 }
 
 [data-theme="dark"] {
-  --x-bg:          #1a1812;
-  --x-paper:       #221f18;
-  --x-paper-2:     #2c2820;
-  --x-ink:         #f0ebe0;
-  --x-ink-2:       #cfc9bc;
-  --x-mid:         #8c8679;
-  --x-mid-2:       #5e5a53;
-  --x-hair:        #332f26;
-  --x-hair-2:      #3f3b31;
-  --x-accent:      #2a6e5a;
-  --x-accent-2:    #3d9e80;
-  --x-accent-soft: #1a2e27;
+  --x-bg:          #13151e;
+  --x-paper:       #1a1d28;
+  --x-paper-2:     #222535;
+  --x-ink:         #e8eaf0;
+  --x-ink-2:       #c0c4d0;
+  --x-mid:         #7a7f8f;
+  --x-mid-2:       #505568;
+  --x-hair:        #2a2e3f;
+  --x-hair-2:      #353948;
+  --x-accent:      #4a7ab5;
+  --x-accent-2:    #6a99cc;
+  --x-accent-soft: #1a2538;
   --x-warm:        #c4613a;
   --x-warm-soft:   #2e1f16;
-  --x-pos:         #3d9e80;
+  --x-pos:         #3d8a9e;
+  --x-pos-soft:    #1a2e35;
   --x-neg:         #c4614a;
+  --x-neg-soft:    #2e1a16;
   --x-shadow:      0 1px 0 rgba(0,0,0,.4), 0 1px 3px rgba(0,0,0,.35);
   --x-shadow-md:   0 4px 16px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.3);
 }
@@ -115,7 +123,7 @@ body {
   border: 1px solid var(--x-hair);
   border-radius: var(--x-radius);
   box-shadow: var(--x-shadow);
-  padding: 22px;
+  padding: var(--x-card-pad, 24px);
 }
 
 /* ── Buttons ──────────────────────────────────────────── */
@@ -138,11 +146,11 @@ body {
 .x-btn:active { transform: translateY(0.5px); }
 .x-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 
-/* Primary = forest green */
+/* Primary = navy */
 .x-btn-primary  {
   background: var(--x-accent);
   color: #fff;
-  box-shadow: 0 2px 8px rgba(19,66,55,.22);
+  box-shadow: rgba(255,255,255,.15) 0px 1px 0px inset, rgba(30,58,95,.22) 0px 2px 8px 0px;
 }
 .x-btn-primary:hover:not(:disabled) { opacity: .88; }
 
@@ -273,7 +281,7 @@ body {
   flex-shrink: 0;
 }
 
-/* Brand mark — forest green */
+/* Brand mark — navy */
 .pulse-brand-mark {
   width: 28px; height: 28px; border-radius: 7px;
   background: var(--x-accent); color: #fff;
@@ -358,7 +366,7 @@ body {
   .push-mobile-only { display: block; }
 }
 
-/* ── Add expense button — forest green ───────────────── */
+/* ── Add expense button — navy ───────────────────────── */
 @media (max-width: 767px) { .pulse-add { display: none !important; } }
 
 .pulse-add {
@@ -377,7 +385,7 @@ body {
   font-family: inherit;
   text-decoration: none;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(19,66,55,.20);
+  box-shadow: rgba(255,255,255,.15) 0px 1px 0px inset, rgba(30,58,95,.20) 0px 2px 8px 0px;
   transition: opacity .12s;
 }
 .pulse-add:hover { opacity: .88; }

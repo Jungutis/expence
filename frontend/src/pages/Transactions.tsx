@@ -7,18 +7,18 @@ import { CATEGORY_META } from '../types';
 
 const CAT_DOTS: Record<ExpenseCategory, string> = {
   MAISTAS:   '#a04d2e',
-  KURAS:     '#1f5454',
+  KURAS:     '#4a6a8a',
   RUBAI:     '#8a5258',
-  NEBUTINOS: '#6d4870',
-  BOLT_WOLT: '#547040',
+  NEBUTINOS: '#5b5a8c',
+  BOLT_WOLT: '#2e6a7a',
   KITOS:     '#a07d2e',
 };
 const CAT_SOFT: Record<ExpenseCategory, string> = {
   MAISTAS:   '#ecd0bf',
-  KURAS:     '#cad9d9',
+  KURAS:     '#d4dde6',
   RUBAI:     '#e8d2d4',
-  NEBUTINOS: '#ddd0de',
-  BOLT_WOLT: '#d6dec8',
+  NEBUTINOS: '#dadae6',
+  BOLT_WOLT: '#d2e2e6',
   KITOS:     '#eddfbc',
 };
 
