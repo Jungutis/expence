@@ -129,15 +129,18 @@ function TxRow({ expense, onDelete, deleting }: { expense: Expense; onDelete?: (
   );
 }
 
-// ── Animated number — fades when value changes ────────
+// ── Animated number — subtle opacity pulse on change ──
 function Num({ val, format }: { val: number; format: (n: number) => string }) {
-  const ref  = useRef<HTMLSpanElement>(null);
-  const prev = useRef(val);
+  const ref     = useRef<HTMLSpanElement>(null);
+  const prev    = useRef(val);
+  const mounted = useRef(false);
   useEffect(() => {
+    // Skip animation on first mount
+    if (!mounted.current) { mounted.current = true; return; }
     if (prev.current !== val && ref.current) {
       ref.current.animate(
-        [{ opacity: 0.25, transform: 'translateY(3px)' }, { opacity: 1, transform: 'translateY(0)' }],
-        { duration: 280, easing: 'ease', fill: 'backwards' },
+        [{ opacity: 0.4 }, { opacity: 1 }],
+        { duration: 220, easing: 'ease' },
       );
       prev.current = val;
     }
@@ -159,6 +162,9 @@ export default function Home() {
 
   // Separate list state — only this changes on delete, stat cards stay untouched
   const [displayExpenses, setDisplayExpenses] = useState<Expense[]>([]);
+
+  // Track whether initial load animation has already played
+  const didAnimateRef = useRef(false);
 
   const isCurrentMonth = selectedMonth === now.getMonth() + 1 && selectedYear === now.getFullYear();
 
@@ -304,8 +310,11 @@ export default function Home() {
           <p style={{ color: 'var(--x-neg)', marginBottom: 12 }}>{error}</p>
           <button onClick={fetchData} className="x-btn x-btn-secondary">Retry</button>
         </div>
-      ) : data ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--pulse-gap, 14px)' }} className="anim-up">
+      ) : data ? (() => {
+        const isFirstRender = !didAnimateRef.current;
+        if (isFirstRender) didAnimateRef.current = true;
+        return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--pulse-gap, 14px)' }} className={isFirstRender ? 'anim-up' : ''}>
 
           {/* ── Hero row (3 stat cards) ── */}
           <div className="pulse-row-3">
@@ -562,7 +571,8 @@ export default function Home() {
           )}
 
         </div>
-      ) : null}
+        );
+      })() : null}
     </div>
   );
 }
