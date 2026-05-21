@@ -330,11 +330,11 @@ export default function Home() {
           <div className="pulse-row-3">
 
             {/* Balance / Spent */}
-            <div className="x-card">
-              <div style={{ fontSize: 11, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500, marginBottom: 6 }}>
+            <div className="x-card" style={{ background: 'var(--x-grad-warm)', color: 'var(--x-grad-warm-ink)', border: 'none' }}>
+              <div style={{ fontSize: 11.5, color: 'var(--x-grad-warm-ink)', opacity: .7, textTransform: 'uppercase', letterSpacing: .6, fontWeight: 600, marginBottom: 6 }}>
                 {balance !== null ? 'Balance · this month' : 'Total spent'}
               </div>
-              <div className="x-num" style={{ fontSize: 36, fontWeight: 600, letterSpacing: -1.2, lineHeight: 1, marginTop: 4, color: balance !== null && balance < 0 ? 'var(--x-neg)' : 'var(--x-ink)' }}>
+              <div className="x-num pulse-hero-amount" style={{ fontSize: 44, fontWeight: 600, letterSpacing: -1.2, lineHeight: 1, marginTop: 4, color: balance !== null && balance < 0 ? 'rgba(156,58,37,.9)' : 'var(--x-grad-warm-ink)' }}>
                 {balance !== null
                   ? <><span>{balance < 0 ? '−' : ''}</span><Num val={Math.abs(balance)} format={fmt} /></>
                   : <Num val={spent} format={fmt} />}
@@ -342,19 +342,19 @@ export default function Home() {
               <div style={{ display: 'flex', gap: 14, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
                 {income > 0 && <>
                   <div>
-                    <div style={{ fontSize: 11, color: 'var(--x-mid)', marginBottom: 2 }}>Income</div>
-                    <div className="x-mono" style={{ fontSize: 13.5, fontWeight: 500 }}>{fmt(income)}</div>
+                    <div style={{ fontSize: 11, color: 'var(--x-grad-warm-ink)', opacity: .6, marginBottom: 2 }}>Income</div>
+                    <div className="x-mono" style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--x-grad-warm-ink)' }}>{fmt(income)}</div>
                   </div>
-                  <div className="x-divider-v" style={{ height: 26 }} />
+                  <div className="x-divider-v" style={{ height: 26, background: 'rgba(13,31,58,.15)' }} />
                 </>}
                 <div>
-                  <div style={{ fontSize: 11, color: 'var(--x-mid)', marginBottom: 2 }}>Spent</div>
-                  <div className="x-mono" style={{ fontSize: 13.5, fontWeight: 500 }}>−<Num val={spent} format={fmt} /></div>
+                  <div style={{ fontSize: 11, color: 'var(--x-grad-warm-ink)', opacity: .6, marginBottom: 2 }}>Spent</div>
+                  <div className="x-mono" style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--x-grad-warm-ink)' }}>−<Num val={spent} format={fmt} /></div>
                 </div>
-                <div className="x-divider-v" style={{ height: 26 }} />
+                <div className="x-divider-v" style={{ height: 26, background: 'rgba(13,31,58,.15)' }} />
                 <div>
-                  <div style={{ fontSize: 11, color: 'var(--x-mid)', marginBottom: 2 }}>Transactions</div>
-                  <div className="x-mono" style={{ fontSize: 13.5, fontWeight: 500 }}><Num val={displayExpenses.length} format={String} /></div>
+                  <div style={{ fontSize: 11, color: 'var(--x-grad-warm-ink)', opacity: .6, marginBottom: 2 }}>Transactions</div>
+                  <div className="x-mono" style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--x-grad-warm-ink)' }}><Num val={displayExpenses.length} format={String} /></div>
                 </div>
               </div>
             </div>
