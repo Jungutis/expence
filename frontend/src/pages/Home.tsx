@@ -7,12 +7,20 @@ import { CATEGORY_META } from '../types';
 
 // ── Category dot colors ────────────────────────────────
 const CAT_DOTS: Record<ExpenseCategory, string> = {
-  MAISTAS:   '#0b0d10',
-  KURAS:     '#2A6FDB',
-  RUBAI:     '#7a5fb0',
-  NEBUTINOS: '#8b919c',
-  BOLT_WOLT: '#1f8a5b',
-  KITOS:     '#a07b2c',
+  MAISTAS:   '#a04d2e',
+  KURAS:     '#1f5454',
+  RUBAI:     '#8a5258',
+  NEBUTINOS: '#6d4870',
+  BOLT_WOLT: '#547040',
+  KITOS:     '#a07d2e',
+};
+const CAT_SOFT: Record<ExpenseCategory, string> = {
+  MAISTAS:   '#ecd0bf',
+  KURAS:     '#cad9d9',
+  RUBAI:     '#e8d2d4',
+  NEBUTINOS: '#ddd0de',
+  BOLT_WOLT: '#d6dec8',
+  KITOS:     '#eddfbc',
 };
 const CATEGORIES: ExpenseCategory[] = ['MAISTAS','KURAS','RUBAI','NEBUTINOS','BOLT_WOLT','KITOS'];
 const MONTHS = ['January','February','March','April','May','June',
@@ -44,7 +52,7 @@ function SparkBars({ days, height = 110 }: { days: { day: number; total: number 
             title={`Day ${d.day}: ${fmt(d.total)}`}>
             <div style={{
               width: '100%', height: h, borderRadius: 3,
-              background: d.day === today ? 'var(--x-accent)' : 'var(--x-paper-2)',
+              background: d.day === today ? 'var(--x-warm)' : 'var(--x-paper-2)',
               transition: 'height .3s ease',
             }} />
           </div>
@@ -56,21 +64,22 @@ function SparkBars({ days, height = 110 }: { days: { day: number; total: number 
 
 // ── Budget ring ────────────────────────────────────────
 function BudgetRing({ spent, budget, size = 88 }: { spent: number; budget: number; size?: number }) {
-  const pct  = Math.min(1, budget > 0 ? spent / budget : 0);
-  const r    = (size - 12) / 2;
-  const c    = 2 * Math.PI * r;
-  const over = pct >= 1;
+  const pct   = Math.min(1, budget > 0 ? spent / budget : 0);
+  const r     = (size - 12) / 2;
+  const c     = 2 * Math.PI * r;
+  // Dynamic color: forest (<70%) → honey (70–90%) → terracotta (>90%)
+  const ringColor = pct >= 1 ? 'var(--x-neg)' : pct >= 0.9 ? '#a04d2e' : pct >= 0.7 ? '#a07d2e' : 'var(--x-accent)';
   return (
     <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--x-paper-2)" strokeWidth="6" />
         <circle cx={size/2} cy={size/2} r={r} fill="none"
-          stroke={over ? 'var(--x-neg)' : 'var(--x-accent)'} strokeWidth="6"
+          stroke={ringColor} strokeWidth="6"
           strokeDasharray={c} strokeDashoffset={c * (1 - pct)} strokeLinecap="round"
-          style={{ transition: 'stroke-dashoffset .5s ease' }} />
+          style={{ transition: 'stroke-dashoffset .5s ease, stroke .4s ease' }} />
       </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-        <div className="x-mono" style={{ fontSize: 16, fontWeight: 600, letterSpacing: -0.4, color: over ? 'var(--x-neg)' : 'var(--x-ink)' }}>
+        <div className="x-mono" style={{ fontSize: 16, fontWeight: 600, letterSpacing: -0.4, color: pct >= 0.9 ? ringColor : 'var(--x-ink)' }}>
           {Math.round(pct * 100)}%
         </div>
         <div style={{ fontSize: 9, color: 'var(--x-mid)', letterSpacing: 0.4, textTransform: 'uppercase' }}>budget</div>
@@ -83,6 +92,7 @@ function BudgetRing({ spent, budget, size = 88 }: { spent: number; budget: numbe
 function TxRow({ expense, onDelete, deleting }: { expense: Expense; onDelete?: () => void; deleting?: boolean }) {
   const meta    = CATEGORY_META[expense.category];
   const dot     = CAT_DOTS[expense.category];
+  const soft    = CAT_SOFT[expense.category];
   const d       = new Date(expense.date);
   const time    = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   const rowRef  = useRef<HTMLDivElement>(null);
@@ -102,7 +112,7 @@ function TxRow({ expense, onDelete, deleting }: { expense: Expense; onDelete?: (
   return (
     <div ref={rowRef} style={style}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
-        <div style={{ width: 32, height: 32, borderRadius: 9, background: 'var(--x-paper)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 15 }}>
+        <div style={{ width: 32, height: 32, borderRadius: 9, background: soft, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 15 }}>
           {meta.emoji}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -472,9 +482,10 @@ export default function Home() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {topCats.map(({ cat, total }) => {
-                    const meta = CATEGORY_META[cat];
-                    const dot  = CAT_DOTS[cat];
-                    const pct  = spent > 0 ? (total / spent) * 100 : 0;
+                    const meta    = CATEGORY_META[cat];
+                    const dot     = CAT_DOTS[cat];
+                    const catSoft = CAT_SOFT[cat];
+                    const pct     = spent > 0 ? (total / spent) * 100 : 0;
                     return (
                       <div key={cat}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -487,7 +498,7 @@ export default function Home() {
                             <span className="x-mono" style={{ fontSize: 11, color: 'var(--x-mid)', minWidth: 30, textAlign: 'right' }}>{Math.round(pct)}%</span>
                           </div>
                         </div>
-                        <div style={{ height: 6, background: 'var(--x-paper-2)', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ height: 6, background: catSoft, borderRadius: 3, overflow: 'hidden' }}>
                           <div style={{ height: '100%', width: `${pct}%`, background: dot, borderRadius: 3, transition: 'width .5s ease' }} />
                         </div>
                       </div>

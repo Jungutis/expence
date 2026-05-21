@@ -6,12 +6,20 @@ import type { Expense, ExpenseCategory } from '../types';
 import { CATEGORY_META } from '../types';
 
 const CAT_DOTS: Record<ExpenseCategory, string> = {
-  MAISTAS:   '#0b0d10',
-  KURAS:     '#2A6FDB',
-  RUBAI:     '#7a5fb0',
-  NEBUTINOS: '#8b919c',
-  BOLT_WOLT: '#1f8a5b',
-  KITOS:     '#a07b2c',
+  MAISTAS:   '#a04d2e',
+  KURAS:     '#1f5454',
+  RUBAI:     '#8a5258',
+  NEBUTINOS: '#6d4870',
+  BOLT_WOLT: '#547040',
+  KITOS:     '#a07d2e',
+};
+const CAT_SOFT: Record<ExpenseCategory, string> = {
+  MAISTAS:   '#ecd0bf',
+  KURAS:     '#cad9d9',
+  RUBAI:     '#e8d2d4',
+  NEBUTINOS: '#ddd0de',
+  BOLT_WOLT: '#d6dec8',
+  KITOS:     '#eddfbc',
 };
 
 const MONTHS = ['January','February','March','April','May','June',
@@ -36,6 +44,7 @@ function TxRow({ expense, onDelete, deleting }: {
 }) {
   const meta   = CATEGORY_META[expense.category];
   const dot    = CAT_DOTS[expense.category];
+  const soft   = CAT_SOFT[expense.category];
   const d      = new Date(expense.date);
   const time   = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   const rowRef = useRef<HTMLDivElement>(null);
@@ -52,7 +61,7 @@ function TxRow({ expense, onDelete, deleting }: {
   return (
     <div ref={rowRef} style={style}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0' }}>
-        <div style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--x-paper)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 16 }}>
+        <div style={{ width: 34, height: 34, borderRadius: 9, background: soft, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 16 }}>
           {meta.emoji}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>

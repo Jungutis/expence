@@ -10,12 +10,20 @@ import axios from 'axios';
 const CATEGORIES: ExpenseCategory[] = ['MAISTAS','KURAS','RUBAI','NEBUTINOS','BOLT_WOLT','KITOS'];
 
 const CAT_DOTS: Record<ExpenseCategory, string> = {
-  MAISTAS:   '#0b0d10',
-  KURAS:     '#2A6FDB',
-  RUBAI:     '#7a5fb0',
-  NEBUTINOS: '#8b919c',
-  BOLT_WOLT: '#1f8a5b',
-  KITOS:     '#a07b2c',
+  MAISTAS:   '#a04d2e',
+  KURAS:     '#1f5454',
+  RUBAI:     '#8a5258',
+  NEBUTINOS: '#6d4870',
+  BOLT_WOLT: '#547040',
+  KITOS:     '#a07d2e',
+};
+const CAT_SOFT: Record<ExpenseCategory, string> = {
+  MAISTAS:   '#ecd0bf',
+  KURAS:     '#cad9d9',
+  RUBAI:     '#e8d2d4',
+  NEBUTINOS: '#ddd0de',
+  BOLT_WOLT: '#d6dec8',
+  KITOS:     '#eddfbc',
 };
 
 export default function CreateRecord() {
@@ -159,8 +167,9 @@ export default function CreateRecord() {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 9 }}>
             {CATEGORIES.map(cat => {
-              const meta    = CATEGORY_META[cat];
-              const dot     = CAT_DOTS[cat];
+              const meta     = CATEGORY_META[cat];
+              const dot      = CAT_DOTS[cat];
+              const catSoft  = CAT_SOFT[cat];
               const selected = category === cat;
               const blocked  = cat === 'MAISTAS' && !!budgetStatus?.isMonthlyExceeded;
               return (
@@ -169,18 +178,19 @@ export default function CreateRecord() {
                   style={{
                     position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7,
                     padding: '14px 10px', borderRadius: 11, cursor: blocked ? 'not-allowed' : 'pointer',
-                    border: selected ? `2px solid ${dot}` : '1px solid var(--x-hair)',
-                    background: selected ? `${dot}0d` : 'var(--x-bg)',
+                    // Active: dot bg, white text / Passive: soft tint, dot border
+                    border: selected ? `2px solid ${dot}` : `1px solid ${catSoft}`,
+                    background: selected ? dot : catSoft,
                     opacity: blocked ? .45 : 1,
                     transition: 'all .12s', fontFamily: 'inherit',
                   }}>
                   {selected && (
-                    <span style={{ position: 'absolute', top: 7, right: 7, width: 14, height: 14, borderRadius: 7, background: dot, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ position: 'absolute', top: 7, right: 7, width: 14, height: 14, borderRadius: 7, background: 'rgba(255,255,255,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7"/></svg>
                     </span>
                   )}
                   <span style={{ fontSize: 22 }}>{meta.emoji}</span>
-                  <span style={{ fontSize: 12, fontWeight: 500, color: selected ? dot : 'var(--x-ink-2)', textAlign: 'center', lineHeight: 1.2 }}>{meta.label}</span>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: selected ? '#fff' : dot, textAlign: 'center', lineHeight: 1.2 }}>{meta.label}</span>
                   {blocked && <span style={{ fontSize: 10, color: 'var(--x-neg)' }}>Blocked</span>}
                 </button>
               );
