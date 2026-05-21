@@ -27,6 +27,38 @@ export default function CreateRecord() {
   const [error, setError]       = useState('');
   const [success, setSuccess]   = useState(false);
   const [budgetStatus, setBudgetStatus] = useState<FoodBudgetStatus | null>(null);
+  const [amountTouched, setAmountTouched] = useState(false);
+  const [amountError,   setAmountError]   = useState('');
+
+  const validateAmount = (val: string): string => {
+    if (!val) return 'Amount is required';
+    const normalised = val.replace(',', '.');
+    const parsed = parseFloat(normalised);
+    if (isNaN(parsed)) return 'Enter a valid number';
+    if (parsed <= 0)   return 'Amount must be greater than 0';
+    const decimals = normalised.split('.')[1];
+    if (decimals && decimals.length > 2) return 'Max 2 decimal places (e.g. 2.22)';
+    return '';
+  };
+
+  const handleAmountChange = (val: string) => {
+    // Block input that would create more than 2 decimal places
+    if (val !== '' && !/^\d*[,.]?\d{0,2}$/.test(val)) return;
+    setAmount(val);
+    setError('');
+    if (amountTouched) setAmountError(validateAmount(val));
+  };
+
+  const handleAmountBlur = () => {
+    setAmountTouched(true);
+    setAmountError(validateAmount(amount));
+  };
+
+  const pickQuickAmount = (q: number) => {
+    setAmount(String(q));
+    setAmountError('');
+    setAmountTouched(true);
+  };
 
   const now = new Date();
 
@@ -148,14 +180,34 @@ export default function CreateRecord() {
             2 · Amount
           </div>
           <div style={{ position: 'relative' }}>
-            <span className="x-mono" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 20, color: 'var(--x-mid)', pointerEvents: 'none' }}>€</span>
-            <input type="number" value={amount} min="0.01" step="0.01" placeholder="0.00"
-              onChange={e => { setAmount(e.target.value); setError(''); }}
-              className="x-input x-mono" style={{ paddingLeft: 36, fontSize: 20, fontWeight: 500, height: 50 }} />
+            <span className="x-mono" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 20, color: amountError && amountTouched ? 'var(--x-neg)' : 'var(--x-mid)', pointerEvents: 'none', transition: 'color .15s' }}>€</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={amount}
+              placeholder="0.00"
+              onChange={e => handleAmountChange(e.target.value)}
+              onBlur={handleAmountBlur}
+              className={`x-input x-mono${amountError && amountTouched ? ' error' : ''}`}
+              style={{ paddingLeft: 36, fontSize: 20, fontWeight: 500, height: 50 }}
+            />
           </div>
+
+          {/* Inline error */}
+          <div style={{
+            maxHeight: amountError && amountTouched ? 28 : 0,
+            overflow: 'hidden',
+            transition: 'max-height .2s ease',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 7, fontSize: 12.5, color: 'var(--x-neg)', fontWeight: 500 }}>
+              <span style={{ fontSize: 14 }}>✳</span>
+              {amountError}
+            </div>
+          </div>
+
           <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
             {[5, 10, 20, 50, 100].map(q => (
-              <button key={q} type="button" onClick={() => setAmount(String(q))}
+              <button key={q} type="button" onClick={() => pickQuickAmount(q)}
                 style={{ padding: '5px 12px', border: `1px solid ${amount === String(q) ? 'var(--x-ink)' : 'var(--x-hair)'}`, borderRadius: 7, background: amount === String(q) ? 'var(--x-ink)' : 'transparent', color: amount === String(q) ? 'var(--x-bg)' : 'var(--x-ink-2)', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'all .1s' }}>
                 {q} €
               </button>
@@ -197,7 +249,7 @@ export default function CreateRecord() {
           </div>
         )}
 
-        <button type="submit" disabled={loading || !category || !amount} className="x-btn x-btn-primary" style={{ height: 44, fontSize: 14.5 }}>
+        <button type="submit" disabled={loading || !category || !amount || !!amountError} className="x-btn x-btn-primary" style={{ height: 44, fontSize: 14.5 }}>
           {loading ? 'Saving…' : 'Save expense'}
         </button>
       </form>
