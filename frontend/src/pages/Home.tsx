@@ -129,6 +129,22 @@ function TxRow({ expense, onDelete, deleting }: { expense: Expense; onDelete?: (
   );
 }
 
+// ── Animated number — fades when value changes ────────
+function Num({ val, format }: { val: number; format: (n: number) => string }) {
+  const ref  = useRef<HTMLSpanElement>(null);
+  const prev = useRef(val);
+  useEffect(() => {
+    if (prev.current !== val && ref.current) {
+      ref.current.animate(
+        [{ opacity: 0.25, transform: 'translateY(3px)' }, { opacity: 1, transform: 'translateY(0)' }],
+        { duration: 280, easing: 'ease', fill: 'backwards' },
+      );
+      prev.current = val;
+    }
+  }, [val]);
+  return <span ref={ref}>{format(val)}</span>;
+}
+
 // ── Main ───────────────────────────────────────────────
 export default function Home() {
   const { user } = useAuth();
@@ -225,18 +241,19 @@ export default function Home() {
     [byCategory],
   );
 
+  // Chart uses original fetch data — doesn't re-animate on delete
   const dayData = useMemo(() => {
-    if (!isCurrentMonth) return [];
+    if (!data || !isCurrentMonth) return [];
     return Array.from({ length: now.getDate() }, (_, i) => {
       const day = i + 1;
       return {
         day,
-        total: displayExpenses
+        total: data.expenses
           .filter(e => new Date(e.date).getDate() === day)
           .reduce((s, e) => s + e.amount, 0),
       };
     });
-  }, [displayExpenses, isCurrentMonth, now]);
+  }, [data, isCurrentMonth, now]);
 
   const recent = displayExpenses.slice(0, 6);
 
@@ -299,7 +316,9 @@ export default function Home() {
                 {balance !== null ? 'Balance · this month' : 'Total spent'}
               </div>
               <div className="x-num" style={{ fontSize: 36, fontWeight: 600, letterSpacing: -1.2, lineHeight: 1, marginTop: 4, color: balance !== null && balance < 0 ? 'var(--x-neg)' : 'var(--x-ink)' }}>
-                {balance !== null ? `${balance < 0 ? '−' : ''}${fmt(Math.abs(balance))}` : fmt(spent)}
+                {balance !== null
+                  ? <><span>{balance < 0 ? '−' : ''}</span><Num val={Math.abs(balance)} format={fmt} /></>
+                  : <Num val={spent} format={fmt} />}
               </div>
               <div style={{ display: 'flex', gap: 14, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
                 {income > 0 && <>
@@ -311,12 +330,12 @@ export default function Home() {
                 </>}
                 <div>
                   <div style={{ fontSize: 11, color: 'var(--x-mid)', marginBottom: 2 }}>Spent</div>
-                  <div className="x-mono" style={{ fontSize: 13.5, fontWeight: 500 }}>−{fmt(spent)}</div>
+                  <div className="x-mono" style={{ fontSize: 13.5, fontWeight: 500 }}>−<Num val={spent} format={fmt} /></div>
                 </div>
                 <div className="x-divider-v" style={{ height: 26 }} />
                 <div>
                   <div style={{ fontSize: 11, color: 'var(--x-mid)', marginBottom: 2 }}>Transactions</div>
-                  <div className="x-mono" style={{ fontSize: 13.5, fontWeight: 500 }}>{displayExpenses.length}</div>
+                  <div className="x-mono" style={{ fontSize: 13.5, fontWeight: 500 }}><Num val={displayExpenses.length} format={String} /></div>
                 </div>
               </div>
             </div>
@@ -328,7 +347,7 @@ export default function Home() {
                   Budget
                 </div>
                 <div className="x-num" style={{ fontSize: 22, fontWeight: 600, letterSpacing: -0.4 }}>
-                  {fmt(foodLeft)}<span style={{ fontSize: 13, color: 'var(--x-mid)', fontWeight: 400 }}> left</span>
+                  <Num val={foodLeft} format={fmt} /><span style={{ fontSize: 13, color: 'var(--x-mid)', fontWeight: 400 }}> left</span>
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--x-mid)', marginTop: 4 }}>
                   Safe daily: <span className="x-mono" style={{ color: 'var(--x-ink-2)' }}>{fmt(profile?.foodDailyLimit ?? 0)}</span>
@@ -351,10 +370,10 @@ export default function Home() {
                 Daily average
               </div>
               <div className="x-num" style={{ fontSize: 36, fontWeight: 600, letterSpacing: -1.2, lineHeight: 1, marginTop: 4 }}>
-                {fmt(dailyAvg)}
+                <Num val={dailyAvg} format={fmt} />
               </div>
               <div style={{ fontSize: 12, color: 'var(--x-mid)', marginTop: 12 }}>
-                Projected: <span className="x-mono" style={{ color: income > 0 && projected > income ? 'var(--x-neg)' : 'var(--x-ink-2)' }}>{fmtShort(projected)}</span>
+                Projected: <span className="x-mono" style={{ color: income > 0 && projected > income ? 'var(--x-neg)' : 'var(--x-ink-2)' }}><Num val={projected} format={fmtShort} /></span>
               </div>
               <div style={{ fontSize: 12, color: 'var(--x-mid)', marginTop: 3 }}>
                 {daysPassed} of {daysInMonth} days tracked
