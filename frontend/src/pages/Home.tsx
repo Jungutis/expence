@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { expensesApi, profileApi } from '../services/api';
@@ -129,6 +129,83 @@ function TxRow({ expense, onDelete, deleting }: { expense: Expense; onDelete?: (
   );
 }
 
+// ── Expense list (memoized — re-renders only when list changes) ───
+const ExpenseList = memo(function ExpenseList({
+  recent, rest, deletingId, onDelete, totalCount,
+}: {
+  recent: Expense[];
+  rest: Expense[];
+  deletingId: string | null;
+  onDelete: (id: string) => void;
+  totalCount: number;
+}) {
+  return (
+    <>
+      {/* Recent card */}
+      <div className="x-card" style={{ padding: 0 }}>
+        <div style={{ padding: '18px 20px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <div style={{ fontSize: 14.5, fontWeight: 600, letterSpacing: -0.2 }}>Recent</div>
+          <Link to="/create" style={{ fontSize: 12, color: 'var(--x-mid)', textDecoration: 'none' }}>+ Add →</Link>
+        </div>
+        <div className="x-divider" />
+        {recent.length === 0 ? (
+          <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--x-mid)', fontSize: 13 }}>
+            No expenses yet this month
+          </div>
+        ) : (
+          <div style={{ padding: '2px 20px' }}>
+            {recent.map((e, i) => (
+              <div key={e.id}>
+                <TxRow expense={e} onDelete={() => onDelete(e.id)} deleting={deletingId === e.id} />
+                {i < recent.length - 1 && <div className="x-divider" />}
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ padding: '10px 20px 18px' }}>
+          <Link to="/create" style={{
+            display: 'block', textAlign: 'center', padding: '9px',
+            borderRadius: 9, border: '1px dashed var(--x-hair-2)',
+            color: 'var(--x-mid)', fontSize: 12.5, textDecoration: 'none',
+          }}>
+            + Quick add
+          </Link>
+        </div>
+      </div>
+
+      {/* Full list */}
+      {rest.length > 0 && (
+        <div className="x-card" style={{ padding: 0 }}>
+          <div style={{ padding: '16px 20px 12px' }}>
+            <div style={{ fontSize: 14.5, fontWeight: 600, letterSpacing: -0.2 }}>
+              All transactions <span style={{ fontWeight: 400, color: 'var(--x-mid)', fontSize: 13 }}>({totalCount})</span>
+            </div>
+          </div>
+          <div className="x-divider" />
+          <div style={{ padding: '2px 20px' }}>
+            {rest.map((e, i) => (
+              <div key={e.id}>
+                <TxRow expense={e} onDelete={() => onDelete(e.id)} deleting={deletingId === e.id} />
+                {i < rest.length - 1 && <div className="x-divider" />}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {totalCount === 0 && (
+        <div className="x-card" style={{ textAlign: 'center', padding: 56 }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>📭</div>
+          <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>No expenses this month</div>
+          <div style={{ fontSize: 13, color: 'var(--x-mid)', marginBottom: 20 }}>Start tracking your spending.</div>
+          <Link to="/create" className="x-btn x-btn-primary" style={{ textDecoration: 'none' }}>Add first expense</Link>
+        </div>
+      )}
+    </>
+  );
+});
+
 // ── Main ───────────────────────────────────────────────
 export default function Home() {
   const { user } = useAuth();
@@ -141,6 +218,9 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
 
+  // Separate list state — only this changes on delete, stat cards stay untouched
+  const [displayExpenses, setDisplayExpenses] = useState<Expense[]>([]);
+
   const isCurrentMonth = selectedMonth === now.getMonth() + 1 && selectedYear === now.getFullYear();
 
   const fetchData = useCallback(async () => {
@@ -151,7 +231,9 @@ export default function Home() {
         expensesApi.getExpenses(selectedMonth, selectedYear),
         profileApi.getProfile(),
       ]);
-      setData(result); setProfile(prof);
+      setData(result);
+      setDisplayExpenses(result.expenses);
+      setProfile(prof);
     } catch { setError('Failed to load data'); }
     finally  { setLoading(false); }
   }, [user, selectedMonth, selectedYear]);
@@ -160,31 +242,21 @@ export default function Home() {
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     if (deletingId) return;
     setDeletingId(id);
 
-    // Wait for collapse animation to finish, then remove from local state
+    // After collapse animation — only list updates, stat cards untouched
     setTimeout(() => {
-      setData(prev => {
-        if (!prev) return prev;
-        const expense = prev.expenses.find(e => e.id === id);
-        if (!expense) return prev;
-        const expenses = prev.expenses.filter(e => e.id !== id);
-        const total = prev.total - expense.amount;
-        const byCategory = { ...prev.byCategory, [expense.category]: (prev.byCategory[expense.category] ?? 0) - expense.amount };
-        return { ...prev, expenses, total, byCategory };
-      });
+      setDisplayExpenses(prev => prev.filter(e => e.id !== id));
       setDeletingId(null);
     }, 320);
 
-    // Fire API in background — no await needed for UX
     expensesApi.deleteExpense(id).catch(() => {
-      // On failure restore by re-fetching
       setDeletingId(null);
       fetchData();
     });
-  };
+  }, [deletingId, fetchData]);
 
   const prevMonth = () => {
     if (selectedMonth === 1) { setSelectedMonth(12); setSelectedYear(y => y - 1); }
@@ -223,8 +295,8 @@ export default function Home() {
     }
   }
 
-  const recent = data?.expenses.slice(0, 6) ?? [];
-  const rest   = data?.expenses.slice(6) ?? [];
+  const recent = displayExpenses.slice(0, 6);
+  const rest   = displayExpenses.slice(6);
 
   if (!user) return null;
 
@@ -369,7 +441,6 @@ export default function Home() {
                 </div>
               </div>
             ) : (
-              /* placeholder card when no current-month data */
               <div className="x-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 160 }}>
                 <div style={{ textAlign: 'center', color: 'var(--x-mid)', fontSize: 13 }}>
                   No chart data for past months
@@ -377,37 +448,14 @@ export default function Home() {
               </div>
             )}
 
-            {/* Recent transactions */}
-            <div className="x-card" style={{ padding: 0 }}>
-              <div style={{ padding: '18px 20px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <div style={{ fontSize: 14.5, fontWeight: 600, letterSpacing: -0.2 }}>Recent</div>
-                <Link to="/create" style={{ fontSize: 12, color: 'var(--x-mid)', textDecoration: 'none' }}>+ Add →</Link>
-              </div>
-              <div className="x-divider" />
-              {recent.length === 0 ? (
-                <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--x-mid)', fontSize: 13 }}>
-                  No expenses yet this month
-                </div>
-              ) : (
-                <div style={{ padding: '2px 20px' }}>
-                  {recent.map((e, i) => (
-                    <div key={e.id}>
-                      <TxRow expense={e} onDelete={() => handleDelete(e.id)} deleting={deletingId === e.id} />
-                      {i < recent.length - 1 && <div className="x-divider" />}
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div style={{ padding: '10px 20px 18px' }}>
-                <Link to="/create" style={{
-                  display: 'block', textAlign: 'center', padding: '9px',
-                  borderRadius: 9, border: '1px dashed var(--x-hair-2)',
-                  color: 'var(--x-mid)', fontSize: 12.5, textDecoration: 'none',
-                }}>
-                  + Quick add
-                </Link>
-              </div>
-            </div>
+            {/* Recent — isolated in memo component */}
+            <ExpenseList
+              recent={recent}
+              rest={[]}
+              deletingId={deletingId}
+              onDelete={handleDelete}
+              totalCount={displayExpenses.length}
+            />
           </div>
 
           {/* ── Bottom row (categories + insights) ── */}
@@ -509,35 +557,14 @@ export default function Home() {
             </div>
           )}
 
-          {/* ── Full transaction list (beyond first 6) ── */}
-          {rest.length > 0 && (
-            <div className="x-card" style={{ padding: 0 }}>
-              <div style={{ padding: '16px 20px 12px' }}>
-                <div style={{ fontSize: 14.5, fontWeight: 600, letterSpacing: -0.2 }}>
-                  All transactions <span style={{ fontWeight: 400, color: 'var(--x-mid)', fontSize: 13 }}>({data.expenses.length})</span>
-                </div>
-              </div>
-              <div className="x-divider" />
-              <div style={{ padding: '2px 20px' }}>
-                {rest.map((e, i) => (
-                  <div key={e.id}>
-                    <TxRow expense={e} onDelete={() => handleDelete(e.id)} deleting={deletingId === e.id} />
-                    {i < rest.length - 1 && <div className="x-divider" />}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Empty state */}
-          {data.expenses.length === 0 && (
-            <div className="x-card" style={{ textAlign: 'center', padding: 56 }}>
-              <div style={{ fontSize: 36, marginBottom: 12 }}>📭</div>
-              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>No expenses this month</div>
-              <div style={{ fontSize: 13, color: 'var(--x-mid)', marginBottom: 20 }}>Start tracking your spending.</div>
-              <Link to="/create" className="x-btn x-btn-primary" style={{ textDecoration: 'none' }}>Add first expense</Link>
-            </div>
-          )}
+          {/* ── Full list + empty state — same memo component ── */}
+          <ExpenseList
+            recent={[]}
+            rest={rest}
+            deletingId={deletingId}
+            onDelete={handleDelete}
+            totalCount={displayExpenses.length}
+          />
 
         </div>
       ) : null}
