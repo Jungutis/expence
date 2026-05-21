@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { expensesApi, profileApi } from '../services/api';
@@ -80,34 +80,50 @@ function BudgetRing({ spent, budget, size = 88 }: { spent: number; budget: numbe
 }
 
 // ── Transaction row ────────────────────────────────────
-function TxRow({ expense, onDelete }: { expense: Expense; onDelete?: () => void }) {
-  const meta = CATEGORY_META[expense.category];
-  const dot  = CAT_DOTS[expense.category];
-  const d    = new Date(expense.date);
-  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+function TxRow({ expense, onDelete, deleting }: { expense: Expense; onDelete?: () => void; deleting?: boolean }) {
+  const meta    = CATEGORY_META[expense.category];
+  const dot     = CAT_DOTS[expense.category];
+  const d       = new Date(expense.date);
+  const time    = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const rowRef  = useRef<HTMLDivElement>(null);
+
+  // Measure natural height once for collapse animation
+  const [height, setHeight] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    if (rowRef.current && height === undefined) {
+      setHeight(rowRef.current.scrollHeight);
+    }
+  }, [height]);
+
+  const style: React.CSSProperties = deleting
+    ? { overflow: 'hidden', height: 0, opacity: 0, paddingTop: 0, paddingBottom: 0, marginTop: 0, marginBottom: 0, transition: 'height .28s ease, opacity .2s ease, margin .28s ease, padding .28s ease' }
+    : { overflow: 'hidden', height: height ?? 'auto', opacity: 1, transition: 'height .28s ease, opacity .2s ease' };
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
-      <div style={{ width: 32, height: 32, borderRadius: 9, background: 'var(--x-paper)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 15 }}>
-        {meta.emoji}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13.5, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--x-ink)' }}>
-          {expense.note || meta.label}
+    <div ref={rowRef} style={style}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
+        <div style={{ width: 32, height: 32, borderRadius: 9, background: 'var(--x-paper)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 15 }}>
+          {meta.emoji}
         </div>
-        <div style={{ fontSize: 11.5, color: 'var(--x-mid)', display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
-          <span style={{ width: 6, height: 6, borderRadius: 3, background: dot, flexShrink: 0 }} />
-          {meta.label} · {time}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--x-ink)' }}>
+            {expense.note || meta.label}
+          </div>
+          <div style={{ fontSize: 11.5, color: 'var(--x-mid)', display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+            <span style={{ width: 6, height: 6, borderRadius: 3, background: dot, flexShrink: 0 }} />
+            {meta.label} · {time}
+          </div>
         </div>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-        <span className="x-mono" style={{ fontSize: 13.5, fontWeight: 500 }}>−{fmt(expense.amount)}</span>
-        {onDelete && (
-          <button onClick={onDelete}
-            style={{ background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--x-mid)', padding: 4, borderRadius: 5, display: 'flex', opacity: 0.6 }}
-            title="Delete">
-            <Ico d={<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>} />
-          </button>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <span className="x-mono" style={{ fontSize: 13.5, fontWeight: 500 }}>−{fmt(expense.amount)}</span>
+          {onDelete && (
+            <button onClick={onDelete}
+              style={{ background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--x-mid)', padding: 4, borderRadius: 5, display: 'flex', opacity: 0.6 }}
+              title="Delete">
+              <Ico d={<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>} />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -142,9 +158,32 @@ export default function Home() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   const handleDelete = async (id: string) => {
-    await expensesApi.deleteExpense(id);
-    fetchData();
+    if (deletingId) return;
+    setDeletingId(id);
+
+    // Wait for collapse animation to finish, then remove from local state
+    setTimeout(() => {
+      setData(prev => {
+        if (!prev) return prev;
+        const expense = prev.expenses.find(e => e.id === id);
+        if (!expense) return prev;
+        const expenses = prev.expenses.filter(e => e.id !== id);
+        const total = prev.total - expense.amount;
+        const byCategory = { ...prev.byCategory, [expense.category]: (prev.byCategory[expense.category] ?? 0) - expense.amount };
+        return { ...prev, expenses, total, byCategory };
+      });
+      setDeletingId(null);
+    }, 320);
+
+    // Fire API in background — no await needed for UX
+    expensesApi.deleteExpense(id).catch(() => {
+      // On failure restore by re-fetching
+      setDeletingId(null);
+      fetchData();
+    });
   };
 
   const prevMonth = () => {
@@ -353,7 +392,7 @@ export default function Home() {
                 <div style={{ padding: '2px 20px' }}>
                   {recent.map((e, i) => (
                     <div key={e.id}>
-                      <TxRow expense={e} onDelete={() => handleDelete(e.id)} />
+                      <TxRow expense={e} onDelete={() => handleDelete(e.id)} deleting={deletingId === e.id} />
                       {i < recent.length - 1 && <div className="x-divider" />}
                     </div>
                   ))}
@@ -482,7 +521,7 @@ export default function Home() {
               <div style={{ padding: '2px 20px' }}>
                 {rest.map((e, i) => (
                   <div key={e.id}>
-                    <TxRow expense={e} onDelete={() => handleDelete(e.id)} />
+                    <TxRow expense={e} onDelete={() => handleDelete(e.id)} deleting={deletingId === e.id} />
                     {i < rest.length - 1 && <div className="x-divider" />}
                   </div>
                 ))}
