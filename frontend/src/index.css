@@ -355,7 +355,7 @@ body {
   flex: 1;
   min-width: 0;
   overflow: auto;
-  background: var(--x-paper);
+  background: transparent;
 }
 
 /* ── Grid rows ────────────────────────────────────────── */
