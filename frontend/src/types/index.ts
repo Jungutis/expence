@@ -3,13 +3,21 @@ export interface User {
   email: string;
 }
 
-export type ExpenseCategory =
-  | 'MAISTAS'
-  | 'KURAS'
-  | 'RUBAI'
-  | 'NEBUTINOS'
-  | 'BOLT_WOLT'
-  | 'KITOS';
+// Kategorijos dabar dinaminės (vartotojas gali kurti savas) — kodas yra string.
+// Numatytieji kodai: MAISTAS, KURAS, RUBAI, NEBUTINOS, BOLT_WOLT, KITOS.
+export type ExpenseCategory = string;
+
+export interface CategoryDef {
+  id: string;
+  code: string;
+  label: string;
+  emoji: string;
+  color: string; // pagrindinė (dot/bar)
+  soft: string;  // šviesus fonas
+  isDefault: boolean;
+  archived: boolean;
+  sortOrder: number;
+}
 
 export interface Expense {
   id: string;
@@ -77,7 +85,8 @@ export interface CategoryMeta {
   bar: string;
 }
 
-export const CATEGORY_META: Record<ExpenseCategory, CategoryMeta> = {
+// Fallback meta žinomiems default kodams (naudojama kol kraunasi/nepasiekiamos DB kategorijos)
+export const CATEGORY_META: Record<string, CategoryMeta> = {
   MAISTAS: {
     label: 'Maistas',
     emoji: '🍽️',

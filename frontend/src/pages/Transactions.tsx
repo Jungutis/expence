@@ -2,25 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { expensesApi } from '../services/api';
-import type { Expense, ExpenseCategory } from '../types';
-import { CATEGORY_META } from '../types';
-
-const CAT_DOTS: Record<ExpenseCategory, string> = {
-  MAISTAS:   '#a04d2e',
-  KURAS:     '#4a6a8a',
-  RUBAI:     '#8a5258',
-  NEBUTINOS: '#5b5a8c',
-  BOLT_WOLT: '#2e6a7a',
-  KITOS:     '#a07d2e',
-};
-const CAT_SOFT: Record<ExpenseCategory, string> = {
-  MAISTAS:   '#ecd0bf',
-  KURAS:     '#d4dde6',
-  RUBAI:     '#e8d2d4',
-  NEBUTINOS: '#dadae6',
-  BOLT_WOLT: '#d2e2e6',
-  KITOS:     '#eddfbc',
-};
+import type { Expense } from '../types';
+import { useCategories } from '../hooks/useCategories';
 
 const MONTHS = ['January','February','March','April','May','June',
   'July','August','September','October','November','December'];
@@ -42,9 +25,10 @@ function TxRow({ expense, onDelete, deleting }: {
   onDelete?: () => void;
   deleting?: boolean;
 }) {
-  const meta   = CATEGORY_META[expense.category];
-  const dot    = CAT_DOTS[expense.category];
-  const soft   = CAT_SOFT[expense.category];
+  const { metaFor } = useCategories();
+  const meta   = metaFor(expense.category);
+  const dot    = meta.dot;
+  const soft   = meta.soft;
   const d      = new Date(expense.date);
   const time   = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   const rowRef = useRef<HTMLDivElement>(null);

@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
 import { budgetsApi } from '../services/api';
-import type { Budget, BudgetKey, ExpenseCategory } from '../types';
-import { CATEGORY_META } from '../types';
-
-const CATEGORIES: ExpenseCategory[] = ['MAISTAS','KURAS','RUBAI','NEBUTINOS','BOLT_WOLT','KITOS'];
-const ALL_KEYS: BudgetKey[] = ['TOTAL', ...CATEGORIES];
+import type { Budget } from '../types';
+import { useCategories } from '../hooks/useCategories';
 
 /** Mėnesio biudžetų (bendro ir pagal kategoriją) nustatymo kortelė */
 export default function BudgetSettings() {
+  const { cats } = useCategories();
   const [values, setValues]   = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(false);
@@ -28,11 +26,13 @@ export default function BudgetSettings() {
   const handleSave = async () => {
     setSaving(true); setError('');
     try {
-      for (const key of ALL_KEYS) {
+      const keys = ['TOTAL', ...cats.map(c => c.code)];
+      for (const key of keys) {
         const raw = (values[key] ?? '').trim();
         const amount = raw === '' ? null : parseFloat(raw);
         if (amount !== null && (isNaN(amount) || amount < 0)) {
-          setError(`Invalid amount for ${key === 'TOTAL' ? 'Total' : CATEGORY_META[key as ExpenseCategory].label}`);
+          const cat = cats.find(c => c.code === key);
+          setError(`Invalid amount for ${key === 'TOTAL' ? 'Total' : cat?.label ?? key}`);
           setSaving(false);
           return;
         }
@@ -72,14 +72,14 @@ export default function BudgetSettings() {
 
       {/* Per-category */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        {CATEGORIES.map(cat => (
-          <div key={cat}>
-            <label className="x-label">{CATEGORY_META[cat].emoji} {CATEGORY_META[cat].label} (€)</label>
+        {cats.map(cat => (
+          <div key={cat.code}>
+            <label className="x-label">{cat.emoji} {cat.label} (€)</label>
             <div style={{ position: 'relative' }}>
               <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--x-mid)', pointerEvents: 'none' }}>€</span>
               <input type="number" min="0" step="1" placeholder="—"
-                value={values[cat] ?? ''}
-                onChange={e => setValues(v => ({ ...v, [cat]: e.target.value }))}
+                value={values[cat.code] ?? ''}
+                onChange={e => setValues(v => ({ ...v, [cat.code]: e.target.value }))}
                 className="x-input" style={{ paddingLeft: 28 }} />
             </div>
           </div>

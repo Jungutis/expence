@@ -1,12 +1,10 @@
 import { Router, Response } from 'express';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
+import { isValidCategory } from '../lib/categories';
 
 const router = Router();
 router.use(authMiddleware);
-
-const VALID_CATEGORIES = ['MAISTAS', 'KURAS', 'RUBAI', 'NEBUTINOS', 'BOLT_WOLT', 'KITOS'];
-const VALID_BUDGET_KEYS = ['TOTAL', ...VALID_CATEGORIES];
 
 // GET /api/budgets — visi vartotojo biudžetai
 router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
@@ -28,10 +26,10 @@ router.put('/', async (req: AuthRequest, res: Response): Promise<void> => {
     const { category, amount } = req.body;
     const userId = req.userId!;
 
-    if (!category || !VALID_BUDGET_KEYS.includes(category)) {
-      res.status(400).json({
-        error: `Neteisinga kategorija. Galimos: ${VALID_BUDGET_KEYS.join(', ')}`,
-      });
+    const isValid = category === 'TOTAL' ||
+      (typeof category === 'string' && (await isValidCategory(userId, category)));
+    if (!isValid) {
+      res.status(400).json({ error: 'Neteisinga kategorija' });
       return;
     }
 

@@ -1,26 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { expensesApi } from '../services/api';
-import type { MonthStat, ExpenseCategory } from '../types';
-import { CATEGORY_META } from '../types';
+import type { MonthStat } from '../types';
+import { useCategories } from '../hooks/useCategories';
 
-const CAT_DOTS: Record<ExpenseCategory, string> = {
-  MAISTAS:   '#a04d2e',
-  KURAS:     '#4a6a8a',
-  RUBAI:     '#8a5258',
-  NEBUTINOS: '#5b5a8c',
-  BOLT_WOLT: '#2e6a7a',
-  KITOS:     '#a07d2e',
-};
-const CAT_SOFT: Record<ExpenseCategory, string> = {
-  MAISTAS:   '#ecd0bf',
-  KURAS:     '#d4dde6',
-  RUBAI:     '#e8d2d4',
-  NEBUTINOS: '#dadae6',
-  BOLT_WOLT: '#d2e2e6',
-  KITOS:     '#eddfbc',
-};
-const CATEGORIES: ExpenseCategory[] = ['MAISTAS','KURAS','RUBAI','NEBUTINOS','BOLT_WOLT','KITOS'];
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 const fmt      = (n: number) => `${Math.abs(n).toFixed(2)} €`;
@@ -60,6 +43,7 @@ function MonthBars({ months, height = 160 }: { months: MonthStat[]; height?: num
 // ── Main ───────────────────────────────────────────────
 export default function Stats() {
   const { user } = useAuth();
+  const { metaFor } = useCategories();
   const [months, setMonths]   = useState<MonthStat[]>([]);
   const [range, setRange]     = useState<6 | 12>(6);
   const [loading, setLoading] = useState(true);
@@ -91,15 +75,14 @@ export default function Stats() {
 
   // Category totals over whole range, for the breakdown card
   const catTotals = useMemo(() => {
-    const acc: Partial<Record<ExpenseCategory, number>> = {};
+    const acc: Record<string, number> = {};
     for (const m of months) {
-      for (const c of CATEGORIES) {
-        const v = m.byCategory[c] ?? 0;
-        if (v > 0) acc[c] = (acc[c] ?? 0) + v;
+      for (const [c, v] of Object.entries(m.byCategory)) {
+        if ((v ?? 0) > 0) acc[c] = (acc[c] ?? 0) + (v ?? 0);
       }
     }
-    return CATEGORIES
-      .map(c => ({ cat: c, total: acc[c] ?? 0 }))
+    return Object.entries(acc)
+      .map(([cat, total]) => ({ cat, total }))
       .filter(x => x.total > 0)
       .sort((a, b) => b.total - a.total);
   }, [months]);
@@ -216,13 +199,13 @@ export default function Stats() {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {catTotals.map(({ cat, total }) => {
-                    const meta = CATEGORY_META[cat];
+                    const meta = metaFor(cat);
                     const pct  = rangeTotal > 0 ? (total / rangeTotal) * 100 : 0;
                     return (
                       <div key={cat}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ width: 8, height: 8, borderRadius: 4, background: CAT_DOTS[cat], flexShrink: 0 }} />
+                            <span style={{ width: 8, height: 8, borderRadius: 4, background: meta.dot, flexShrink: 0 }} />
                             <span style={{ fontSize: 13, color: 'var(--x-ink-2)' }}>{meta.label}</span>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
@@ -230,8 +213,8 @@ export default function Stats() {
                             <span className="x-mono" style={{ fontSize: 11, color: 'var(--x-mid)', minWidth: 30, textAlign: 'right' }}>{Math.round(pct)}%</span>
                           </div>
                         </div>
-                        <div style={{ height: 6, background: CAT_SOFT[cat], borderRadius: 3, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${pct}%`, background: CAT_DOTS[cat], borderRadius: 3, transition: 'width .5s ease' }} />
+                        <div style={{ height: 6, background: meta.soft, borderRadius: 3, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${pct}%`, background: meta.dot, borderRadius: 3, transition: 'width .5s ease' }} />
                         </div>
                       </div>
                     );
@@ -249,7 +232,7 @@ export default function Stats() {
                 <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--x-mid)', fontSize: 13 }}>Not enough data</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {CATEGORIES
+                  {Array.from(new Set([...Object.keys(current.byCategory), ...Object.keys(previous.byCategory)]))
                     .map(c => ({
                       cat: c,
                       cur: current.byCategory[c] ?? 0,
@@ -258,7 +241,7 @@ export default function Stats() {
                     .filter(x => x.cur > 0 || x.prev > 0)
                     .sort((a, b) => b.cur - a.cur)
                     .map(({ cat, cur, prev }) => {
-                      const meta = CATEGORY_META[cat];
+                      const meta = metaFor(cat);
                       const diff = cur - prev;
                       const up   = diff > 0;
                       return (

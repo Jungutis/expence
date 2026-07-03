@@ -2,13 +2,13 @@ import { useState, useEffect, FormEvent } from 'react';
 import axios from 'axios';
 import { recurringApi } from '../services/api';
 import type { RecurringExpense, ExpenseCategory } from '../types';
-import { CATEGORY_META } from '../types';
+import { useCategories } from '../hooks/useCategories';
 
-const CATEGORIES: ExpenseCategory[] = ['MAISTAS','KURAS','RUBAI','NEBUTINOS','BOLT_WOLT','KITOS'];
 const fmt = (n: number) => `${n.toFixed(2)} €`;
 
 /** Pasikartojančių išlaidų (nuoma, prenumeratos...) valdymo kortelė */
 export default function RecurringSettings() {
+  const { cats, metaFor } = useCategories();
   const [items, setItems]     = useState<RecurringExpense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
@@ -83,7 +83,7 @@ export default function RecurringSettings() {
       {items.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
           {items.map(item => {
-            const meta = CATEGORY_META[item.category];
+            const meta = metaFor(item.category);
             return (
               <div key={item.id} style={{
                 display: 'flex', alignItems: 'center', gap: 10,
@@ -134,8 +134,8 @@ export default function RecurringSettings() {
             <div>
               <label className="x-label">Category</label>
               <select value={category} onChange={e => setCategory(e.target.value as ExpenseCategory)} className="x-input">
-                {CATEGORIES.map(c => (
-                  <option key={c} value={c}>{CATEGORY_META[c].emoji} {CATEGORY_META[c].label}</option>
+                {cats.map(c => (
+                  <option key={c.code} value={c.code}>{c.emoji} {c.label}</option>
                 ))}
               </select>
             </div>

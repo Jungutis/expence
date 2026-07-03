@@ -1,28 +1,10 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { expensesApi, profileApi, budgetsApi } from '../services/api';
-import type { ExpensesResponse, ExpenseCategory, UserProfile, Expense, Budget } from '../types';
-import { CATEGORY_META } from '../types';
+import { expensesApi, profileApi, budgetsApi, recurringApi } from '../services/api';
+import type { ExpensesResponse, ExpenseCategory, UserProfile, Expense, Budget, RecurringExpense } from '../types';
+import { useCategories } from '../hooks/useCategories';
 
-// ── Category dot colors ────────────────────────────────
-const CAT_DOTS: Record<ExpenseCategory, string> = {
-  MAISTAS:   '#a04d2e',
-  KURAS:     '#4a6a8a',
-  RUBAI:     '#8a5258',
-  NEBUTINOS: '#5b5a8c',
-  BOLT_WOLT: '#2e6a7a',
-  KITOS:     '#a07d2e',
-};
-const CAT_SOFT: Record<ExpenseCategory, string> = {
-  MAISTAS:   '#ecd0bf',
-  KURAS:     '#d4dde6',
-  RUBAI:     '#e8d2d4',
-  NEBUTINOS: '#dadae6',
-  BOLT_WOLT: '#d2e2e6',
-  KITOS:     '#eddfbc',
-};
-const CATEGORIES: ExpenseCategory[] = ['MAISTAS','KURAS','RUBAI','NEBUTINOS','BOLT_WOLT','KITOS'];
 const MONTHS = ['January','February','March','April','May','June',
   'July','August','September','October','November','December'];
 
@@ -90,9 +72,10 @@ function BudgetRing({ spent, budget, size = 88 }: { spent: number; budget: numbe
 
 // ── Transaction row ────────────────────────────────────
 function TxRow({ expense, onDelete, deleting }: { expense: Expense; onDelete?: () => void; deleting?: boolean }) {
-  const meta    = CATEGORY_META[expense.category];
-  const dot     = CAT_DOTS[expense.category];
-  const soft    = CAT_SOFT[expense.category];
+  const { metaFor } = useCategories();
+  const meta    = metaFor(expense.category);
+  const dot     = meta.dot;
+  const soft    = meta.soft;
   const d       = new Date(expense.date);
   const time    = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   const rowRef  = useRef<HTMLDivElement>(null);
@@ -161,6 +144,7 @@ function Num({ val, format }: { val: number; format: (n: number) => string }) {
 // ── Main ───────────────────────────────────────────────
 export default function Home() {
   const { user } = useAuth();
+  const { metaFor } = useCategories();
   const now = new Date();
 
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
@@ -168,6 +152,7 @@ export default function Home() {
   const [data,    setData]    = useState<ExpensesResponse | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [recurring, setRecurring] = useState<RecurringExpense[]>([]);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
 
@@ -183,15 +168,17 @@ export default function Home() {
     if (!user) return;
     setLoading(true); setError('');
     try {
-      const [result, prof, budg] = await Promise.all([
+      const [result, prof, budg, rec] = await Promise.all([
         expensesApi.getExpenses(selectedMonth, selectedYear),
         profileApi.getProfile(),
         budgetsApi.list().catch(() => ({ budgets: [] as Budget[] })),
+        recurringApi.list().catch(() => ({ recurring: [] as RecurringExpense[] })),
       ]);
       setData(result);
       setDisplayExpenses(result.expenses);
       setProfile(prof);
       setBudgets(budg.budgets);
+      setRecurring(rec.recurring);
     } catch { setError('Failed to load data'); }
     finally  { setLoading(false); }
   }, [user, selectedMonth, selectedYear]);
@@ -260,20 +247,41 @@ export default function Home() {
   }, [budgets]);
   const totalBudget = budgetMap['TOTAL'] ?? 0;
   const overCats    = useMemo(
-    () => CATEGORIES.filter(c => {
-      const lim = budgetMap[c];
-      return lim != null && lim > 0 && (byCategory[c] ?? 0) > lim;
-    }),
-    [budgetMap, byCategory],
+    () => budgets
+      .filter(b => b.category !== 'TOTAL' && b.amount > 0 && (byCategory[b.category] ?? 0) > b.amount)
+      .map(b => b.category),
+    [budgets, byCategory],
   );
 
   const topCats = useMemo(
-    () => CATEGORIES
-      .map(c => ({ cat: c, total: byCategory[c] ?? 0 }))
+    () => Object.entries(byCategory)
+      .map(([cat, total]) => ({ cat, total: total ?? 0 }))
       .filter(x => x.total > 0)
       .sort((a, b) => b.total - a.total),
     [byCategory],
   );
+
+  // ── „Kiek galiu išleisti šiandien?" ──────────────────
+  // (biudžetas − išleista − dar neįvykusios recurring) ÷ likusios dienos
+  const safeToSpend = useMemo(() => {
+    if (!isCurrentMonth) return null;
+    const base = totalBudget > 0 ? totalBudget : income > 0 ? income : 0;
+    if (base <= 0) return null;
+    const today = now.getDate();
+    const upcomingRecurring = recurring
+      .filter(r => r.active && r.dayOfMonth > today)
+      .reduce((s, r) => s + r.amount, 0);
+    const daysLeft = daysInMonth - today + 1;
+    const remaining = base - spent - upcomingRecurring;
+    return {
+      perDay: Math.max(0, remaining) / daysLeft,
+      remaining,
+      upcomingRecurring,
+      daysLeft,
+      source: totalBudget > 0 ? 'budget' : 'income',
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCurrentMonth, totalBudget, income, recurring, spent, daysInMonth]);
 
   // Chart uses original fetch data — doesn't re-animate on delete
   const dayData = useMemo(() => {
@@ -343,6 +351,37 @@ export default function Home() {
         if (isFirstRender) didAnimateRef.current = true;
         return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--pulse-gap, 14px)' }} className={isFirstRender ? 'anim-up' : ''}>
+
+          {/* ── Safe to spend today ── */}
+          {safeToSpend && (
+            <div className="x-card" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px' }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                background: safeToSpend.remaining < 0 ? 'rgba(193,75,58,.1)' : 'rgba(31,138,91,.1)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
+              }}>
+                {safeToSpend.remaining < 0 ? '🚨' : '💡'}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 11, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500 }}>
+                  Safe to spend today
+                </div>
+                <div className="x-num" style={{ fontSize: 26, fontWeight: 600, letterSpacing: -0.6, lineHeight: 1.2, color: safeToSpend.remaining < 0 ? 'var(--x-neg)' : 'var(--x-ink)' }}>
+                  <Num val={safeToSpend.perDay} format={fmt} />
+                  <span style={{ fontSize: 12.5, color: 'var(--x-mid)', fontWeight: 400 }}> / day</span>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right', fontSize: 12, color: 'var(--x-mid)', lineHeight: 1.6, flexShrink: 0 }}>
+                <div>
+                  {safeToSpend.remaining < 0 ? `${fmt(safeToSpend.remaining)} over` : `${fmt(safeToSpend.remaining)} left`}
+                  {' · '}{safeToSpend.daysLeft} days
+                </div>
+                {safeToSpend.upcomingRecurring > 0 && (
+                  <div>incl. {fmt(safeToSpend.upcomingRecurring)} upcoming bills</div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* ── Hero row (3 stat cards) ── */}
           <div className="pulse-row-3">
@@ -500,9 +539,9 @@ export default function Home() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {topCats.map(({ cat, total }) => {
-                    const meta    = CATEGORY_META[cat];
-                    const dot     = CAT_DOTS[cat];
-                    const catSoft = CAT_SOFT[cat];
+                    const meta    = metaFor(cat);
+                    const dot     = meta.dot;
+                    const catSoft = meta.soft;
                     const limit   = budgetMap[cat] ?? 0;
                     const hasLimit = limit > 0;
                     // Su biudžetu — progresas iki limito; be jo — dalis nuo visų išlaidų
@@ -547,7 +586,7 @@ export default function Home() {
                     <div style={{ display: 'flex', gap: 10 }}>
                       <div style={{ width: 3, borderRadius: 2, background: 'var(--x-neg)', flexShrink: 0, alignSelf: 'stretch' }} />
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>Top: {CATEGORY_META[topCats[0].cat].label}</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>Top: {metaFor(topCats[0].cat).label}</div>
                         <div style={{ fontSize: 12, color: 'var(--x-mid)', lineHeight: 1.55 }}>
                           {Math.round((topCats[0].total / spent) * 100)}% of spending — {fmt(topCats[0].total)} this month.
                         </div>
@@ -592,7 +631,7 @@ export default function Home() {
                           Category budget{overCats.length > 1 ? 's' : ''} exceeded
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--x-mid)', lineHeight: 1.55 }}>
-                          {overCats.map(c => CATEGORY_META[c].label).join(', ')} — over the monthly limit.
+                          {overCats.map(c => metaFor(c).label).join(', ')} — over the monthly limit.
                         </div>
                       </div>
                     </div>

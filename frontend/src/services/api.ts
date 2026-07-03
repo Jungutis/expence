@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type {
   AuthResponse, ExpensesResponse, Expense, ExpenseCategory, UserProfile,
-  Budget, BudgetKey, RecurringExpense, MonthStat,
+  Budget, BudgetKey, RecurringExpense, MonthStat, CategoryDef,
 } from '../types';
 
 const api = axios.create({
@@ -51,6 +51,7 @@ export const expensesApi = {
     category: ExpenseCategory;
     amount: number;
     note?: string;
+    date?: string; // YYYY-MM-DD, praleista = šiandien
   }): Promise<Expense> => api.post('/expenses', data).then((r) => r.data),
 
   deleteExpense: (id: string): Promise<void> =>
@@ -85,6 +86,20 @@ export const budgetsApi = {
 
   upsert: (category: BudgetKey, amount: number | null): Promise<Budget> =>
     api.put('/budgets', { category, amount: amount ?? 0 }).then((r) => r.data),
+};
+
+export const categoriesApi = {
+  list: (): Promise<{ categories: CategoryDef[] }> =>
+    api.get('/categories').then((r) => r.data),
+
+  create: (data: { label: string; emoji: string; color: string; soft: string }): Promise<CategoryDef> =>
+    api.post('/categories', data).then((r) => r.data),
+
+  update: (id: string, data: { label: string; emoji: string; color: string; soft: string }): Promise<CategoryDef> =>
+    api.put(`/categories/${id}`, data).then((r) => r.data),
+
+  remove: (id: string): Promise<{ deleted?: boolean; archived?: boolean }> =>
+    api.delete(`/categories/${id}`).then((r) => r.data),
 };
 
 export const recurringApi = {

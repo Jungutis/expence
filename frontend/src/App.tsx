@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthContext, useAuthState } from './hooks/useAuth';
+import { CategoriesProvider } from './hooks/useCategories';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import CreateRecord from './pages/CreateRecord';
@@ -99,6 +100,7 @@ function App() {
 
   return (
     <AuthContext.Provider value={auth}>
+      <CategoriesProvider>
       <BrowserRouter>
         {auth.user ? (
           /* x-root is the container-query anchor; pulse-shell handles sidebar ↔ bottom-nav */
@@ -130,6 +132,7 @@ function App() {
           </div>
         )}
       </BrowserRouter>
+      </CategoriesProvider>
     </AuthContext.Provider>
   );
 }

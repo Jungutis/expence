@@ -2,35 +2,21 @@ import { useState, useEffect, FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { expensesApi, profileApi } from '../services/api';
 import type { ExpenseCategory } from '../types';
-import { CATEGORY_META } from '../types';
+import { useCategories } from '../hooks/useCategories';
 import { calculateFoodBudget } from '../utils/budgetUtils';
 import type { FoodBudgetStatus } from '../utils/budgetUtils';
 import axios from 'axios';
 
-const CATEGORIES: ExpenseCategory[] = ['MAISTAS','KURAS','RUBAI','NEBUTINOS','BOLT_WOLT','KITOS'];
-
-const CAT_DOTS: Record<ExpenseCategory, string> = {
-  MAISTAS:   '#a04d2e',
-  KURAS:     '#4a6a8a',
-  RUBAI:     '#8a5258',
-  NEBUTINOS: '#5b5a8c',
-  BOLT_WOLT: '#2e6a7a',
-  KITOS:     '#a07d2e',
-};
-const CAT_SOFT: Record<ExpenseCategory, string> = {
-  MAISTAS:   '#ecd0bf',
-  KURAS:     '#d4dde6',
-  RUBAI:     '#e8d2d4',
-  NEBUTINOS: '#dadae6',
-  BOLT_WOLT: '#d2e2e6',
-  KITOS:     '#eddfbc',
-};
+const toYmd = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 export default function CreateRecord() {
   const navigate = useNavigate();
+  const { cats, metaFor } = useCategories();
   const [category, setCategory] = useState<ExpenseCategory | null>(null);
   const [amount, setAmount]     = useState('');
   const [note, setNote]         = useState('');
+  const [date, setDate]         = useState(() => toYmd(new Date()));
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
   const [success, setSuccess]   = useState(false);
@@ -91,7 +77,13 @@ export default function CreateRecord() {
     if (isNaN(parsed) || parsed <= 0) { setError('Enter a valid amount'); return; }
     setError(''); setLoading(true);
     try {
-      await expensesApi.createExpense({ category, amount: parsed, note: note.trim() || undefined });
+      const today = toYmd(new Date());
+      await expensesApi.createExpense({
+        category,
+        amount: parsed,
+        note: note.trim() || undefined,
+        date: date && date !== today ? date : undefined,
+      });
       setSuccess(true);
       setTimeout(() => setExiting(true), 500);
       setTimeout(() => navigate('/'), 820);
@@ -142,7 +134,7 @@ export default function CreateRecord() {
           Back
         </Link>
         <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600, letterSpacing: -0.3 }}>New expense</h1>
-        <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--x-mid)' }}>Date is set automatically</p>
+        <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--x-mid)' }}>Defaults to today — change the date for a forgotten expense</p>
       </div>
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -166,10 +158,11 @@ export default function CreateRecord() {
           )}
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 9 }}>
-            {CATEGORIES.map(cat => {
-              const meta     = CATEGORY_META[cat];
-              const dot      = CAT_DOTS[cat];
-              const catSoft  = CAT_SOFT[cat];
+            {cats.map(c => {
+              const cat      = c.code;
+              const meta     = { emoji: c.emoji, label: c.label };
+              const dot      = c.color;
+              const catSoft  = c.soft;
               const selected = category === cat;
               const blocked  = cat === 'MAISTAS' && !!budgetStatus?.isMonthlyExceeded;
               return (
@@ -239,7 +232,7 @@ export default function CreateRecord() {
           </div>
         </div>
 
-        {/* Note */}
+        {/* Note + date */}
         <div className="x-card">
           <div style={{ fontSize: 11, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500, marginBottom: 14 }}>
             3 · Note <span style={{ fontSize: 10, textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>(optional)</span>
@@ -248,6 +241,19 @@ export default function CreateRecord() {
             onChange={e => setNote(e.target.value)}
             className="x-textarea" />
           <div style={{ fontSize: 11, color: 'var(--x-mid-2)', textAlign: 'right', marginTop: 4 }}>{note.length}/200</div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--x-hair)' }}>
+            <label className="x-label" style={{ margin: 0, flexShrink: 0 }}>Date</label>
+            <input type="date" value={date} max={toYmd(new Date())}
+              onChange={e => setDate(e.target.value)}
+              className="x-input" style={{ flex: 1, height: 38 }} />
+            {date !== toYmd(new Date()) && (
+              <button type="button" onClick={() => setDate(toYmd(new Date()))}
+                style={{ background: 'transparent', border: '1px solid var(--x-hair)', borderRadius: 7, padding: '6px 10px', fontSize: 12, color: 'var(--x-mid)', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                Today
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Summary */}
@@ -256,8 +262,9 @@ export default function CreateRecord() {
             <div style={{ fontSize: 11.5, color: 'var(--x-accent)', fontWeight: 500, marginBottom: 6 }}>Summary</div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: 13.5, color: 'var(--x-ink-2)' }}>
-                {CATEGORY_META[category!].emoji} {CATEGORY_META[category!].label}
+                {metaFor(category!).emoji} {metaFor(category!).label}
                 {note && ` · ${note}`}
+                {date !== toYmd(new Date()) && ` · ${date}`}
               </span>
               <span className="x-mono" style={{ fontSize: 16, fontWeight: 600, color: 'var(--x-ink)' }}>
                 {parsedAmt.toFixed(2)} €

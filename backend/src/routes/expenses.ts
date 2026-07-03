@@ -2,11 +2,10 @@ import { Router, Response } from 'express';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
 import { applyDueRecurring } from '../lib/recurring';
+import { isValidCategory, ensureCategories } from '../lib/categories';
 
 const router = Router();
 router.use(authMiddleware);
-
-const VALID_CATEGORIES = ['MAISTAS', 'KURAS', 'RUBAI', 'NEBUTINOS', 'BOLT_WOLT', 'KITOS'];
 
 // GET /api/expenses/stats?months=6 — mėnesių suvestinė grafikams
 router.get('/stats', async (req: AuthRequest, res: Response): Promise<void> => {
@@ -135,9 +134,10 @@ router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
 
     const total = expenses.reduce((sum, e) => sum + e.amount, 0);
 
+    const categories = await ensureCategories(userId);
     const byCategory: Record<string, number> = {};
-    VALID_CATEGORIES.forEach((cat) => {
-      byCategory[cat] = 0;
+    categories.forEach((cat) => {
+      byCategory[cat.code] = 0;
     });
     expenses.forEach((e) => {
       byCategory[e.category] = (byCategory[e.category] || 0) + e.amount;
@@ -153,13 +153,11 @@ router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
 // POST /api/expenses
 router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { category, amount, note } = req.body;
+    const { category, amount, note, date } = req.body;
     const userId = req.userId!;
 
-    if (!category || !VALID_CATEGORIES.includes(category)) {
-      res.status(400).json({
-        error: `Neteisinga kategorija. Galimos: ${VALID_CATEGORIES.join(', ')}`,
-      });
+    if (!category || typeof category !== 'string' || !(await isValidCategory(userId, category))) {
+      res.status(400).json({ error: 'Neteisinga kategorija' });
       return;
     }
 
@@ -174,13 +172,35 @@ router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
       return;
     }
 
+    // Data: pagal nutylėjimą šiandien; galima nurodyti praeities datą (YYYY-MM-DD)
+    let expenseDate = new Date();
+    if (date !== undefined && date !== null && date !== '') {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date));
+      if (!m) {
+        res.status(400).json({ error: 'Neteisingas datos formatas (YYYY-MM-DD)' });
+        return;
+      }
+      const now = new Date();
+      const picked = new Date(
+        parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]),
+        now.getHours(), now.getMinutes(), now.getSeconds(),
+      );
+      const minDate = new Date(now.getFullYear() - 5, 0, 1);
+      const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+      if (isNaN(picked.getTime()) || picked < minDate || picked > endOfToday) {
+        res.status(400).json({ error: 'Data turi būti ne ateityje ir ne senesnė nei 5 metai' });
+        return;
+      }
+      expenseDate = picked;
+    }
+
     const expense = await prisma.expense.create({
       data: {
         userId,
         category,
         amount: Math.round(parsedAmount * 100) / 100,
         note: note?.trim() || null,
-        date: new Date(), // Backend sets the date!
+        date: expenseDate,
       },
     });
 

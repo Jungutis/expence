@@ -6,6 +6,7 @@ import { usePush } from '../hooks/usePush';
 import axios from 'axios';
 import BudgetSettings from '../components/BudgetSettings';
 import RecurringSettings from '../components/RecurringSettings';
+import CategorySettings from '../components/CategorySettings';
 
 export default function Profile() {
   const { user } = useAuth();
@@ -321,6 +322,7 @@ export default function Profile() {
 
       {/* Monthly budgets + recurring expenses */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
+        <CategorySettings />
         <BudgetSettings />
         <RecurringSettings />
       </div>

@@ -20,6 +20,25 @@ model User {
   pushSubscriptions PushSubscription[]
   budgets          Budget[]
   recurringExpenses RecurringExpense[]
+  categories       Category[]
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  code      String   // MAISTAS, KURAS... arba custom (pvz. GYVUNAI)
+  label     String
+  emoji     String
+  color     String   // pagrindinė spalva (dot/bar)
+  soft      String   // šviesus fonas
+  isDefault Boolean  @default(false)
+  archived  Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, code])
+  @@index([userId])
 }
 
 model PushSubscription {

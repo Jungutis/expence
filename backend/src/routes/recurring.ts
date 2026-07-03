@@ -1,22 +1,21 @@
 import { Router, Response } from 'express';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
+import { isValidCategory } from '../lib/categories';
 
 const router = Router();
 router.use(authMiddleware);
 
-const VALID_CATEGORIES = ['MAISTAS', 'KURAS', 'RUBAI', 'NEBUTINOS', 'BOLT_WOLT', 'KITOS'];
-
-function validateBody(body: {
+async function validateBody(userId: string, body: {
   category?: unknown;
   amount?: unknown;
   note?: unknown;
   dayOfMonth?: unknown;
-}): { error?: string; category?: string; amount?: number; note?: string | null; dayOfMonth?: number } {
+}): Promise<{ error?: string; category?: string; amount?: number; note?: string | null; dayOfMonth?: number }> {
   const { category, amount, note, dayOfMonth } = body;
 
-  if (!category || !VALID_CATEGORIES.includes(category as string)) {
-    return { error: `Neteisinga kategorija. Galimos: ${VALID_CATEGORIES.join(', ')}` };
+  if (!category || typeof category !== 'string' || !(await isValidCategory(userId, category))) {
+    return { error: 'Neteisinga kategorija' };
   }
 
   const parsedAmount = parseFloat(String(amount));
@@ -54,7 +53,7 @@ router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
 // POST /api/recurring
 router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const v = validateBody(req.body);
+    const v = await validateBody(req.userId!, req.body);
     if (v.error) {
       res.status(400).json({ error: v.error });
       return;
@@ -99,7 +98,7 @@ router.put('/:id', async (req: AuthRequest, res: Response): Promise<void> => {
       return;
     }
 
-    const v = validateBody(req.body);
+    const v = await validateBody(req.userId!, req.body);
     if (v.error) {
       res.status(400).json({ error: v.error });
       return;

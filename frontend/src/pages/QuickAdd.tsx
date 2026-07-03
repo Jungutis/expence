@@ -2,14 +2,13 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { expensesApi } from '../services/api';
 import type { ExpenseCategory } from '../types';
-import { CATEGORY_META } from '../types';
-
-const CATEGORIES: ExpenseCategory[] = ['MAISTAS', 'KURAS', 'RUBAI', 'NEBUTINOS', 'BOLT_WOLT', 'KITOS'];
+import { useCategories } from '../hooks/useCategories';
 
 type Step = 'confirm' | 'form' | 'done';
 
 export default function QuickAdd() {
   const navigate = useNavigate();
+  const { cats } = useCategories();
   const [step, setStep]         = useState<Step>('confirm');
   const [amount, setAmount]     = useState('');
   const [category, setCategory] = useState<ExpenseCategory | null>(null);
@@ -122,8 +121,9 @@ export default function QuickAdd() {
 
             {/* Category grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 22 }}>
-              {CATEGORIES.map((cat) => {
-                const meta = CATEGORY_META[cat];
+              {cats.map((c) => {
+                const cat = c.code;
+                const meta = { emoji: c.emoji, label: c.label };
                 const active = category === cat;
                 return (
                   <button
