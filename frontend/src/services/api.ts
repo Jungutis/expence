@@ -1,5 +1,8 @@
 import axios from 'axios';
-import type { AuthResponse, ExpensesResponse, Expense, ExpenseCategory, UserProfile } from '../types';
+import type {
+  AuthResponse, ExpensesResponse, Expense, ExpenseCategory, UserProfile,
+  Budget, BudgetKey, RecurringExpense, MonthStat,
+} from '../types';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
@@ -52,6 +55,54 @@ export const expensesApi = {
 
   deleteExpense: (id: string): Promise<void> =>
     api.delete(`/expenses/${id}`).then((r) => r.data),
+
+  getStats: (months = 6): Promise<{ months: MonthStat[] }> =>
+    api.get('/expenses/stats', { params: { months } }).then((r) => r.data),
+
+  // Atsisiunčia CSV ir paleidžia naršyklės download
+  exportCsv: async (from?: string, to?: string): Promise<void> => {
+    const response = await api.get('/expenses/export', {
+      params: { from, to },
+      responseType: 'blob',
+    });
+    const disposition: string = response.headers['content-disposition'] || '';
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    const filename = match?.[1] || 'expenses.csv';
+    const url = URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
+};
+
+export const budgetsApi = {
+  list: (): Promise<{ budgets: Budget[] }> =>
+    api.get('/budgets').then((r) => r.data),
+
+  upsert: (category: BudgetKey, amount: number | null): Promise<Budget> =>
+    api.put('/budgets', { category, amount: amount ?? 0 }).then((r) => r.data),
+};
+
+export const recurringApi = {
+  list: (): Promise<{ recurring: RecurringExpense[] }> =>
+    api.get('/recurring').then((r) => r.data),
+
+  create: (data: {
+    category: ExpenseCategory;
+    amount: number;
+    note?: string;
+    dayOfMonth: number;
+  }): Promise<RecurringExpense> => api.post('/recurring', data).then((r) => r.data),
+
+  setActive: (id: string, active: boolean): Promise<RecurringExpense> =>
+    api.put(`/recurring/${id}`, { active }).then((r) => r.data),
+
+  remove: (id: string): Promise<void> =>
+    api.delete(`/recurring/${id}`).then((r) => r.data),
 };
 
 export const profileApi = {

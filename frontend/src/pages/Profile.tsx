@@ -4,6 +4,8 @@ import { profileApi, pushApi } from '../services/api'; // pushApi used for short
 import type { UserProfile } from '../types';
 import { usePush } from '../hooks/usePush';
 import axios from 'axios';
+import BudgetSettings from '../components/BudgetSettings';
+import RecurringSettings from '../components/RecurringSettings';
 
 export default function Profile() {
   const { user } = useAuth();
@@ -316,6 +318,12 @@ export default function Profile() {
           {saving ? 'Saving…' : 'Save changes'}
         </button>
       </form>
+
+      {/* Monthly budgets + recurring expenses */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
+        <BudgetSettings />
+        <RecurringSettings />
+      </div>
 
       {/* Current settings summary */}
       {profile && (

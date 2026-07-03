@@ -41,6 +41,33 @@ export interface UserProfile {
   createdAt: string;
 }
 
+export type BudgetKey = ExpenseCategory | 'TOTAL';
+
+export interface Budget {
+  category: BudgetKey;
+  amount: number;
+}
+
+export interface RecurringExpense {
+  id: string;
+  userId: string;
+  category: ExpenseCategory;
+  amount: number;
+  note?: string | null;
+  dayOfMonth: number;
+  active: boolean;
+  lastAppliedYm?: string | null;
+  createdAt: string;
+}
+
+export interface MonthStat {
+  ym: string;
+  year: number;
+  month: number;
+  total: number;
+  byCategory: Partial<Record<ExpenseCategory, number>>;
+}
+
 export interface CategoryMeta {
   label: string;
   emoji: string;

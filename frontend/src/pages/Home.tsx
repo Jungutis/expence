@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { expensesApi, profileApi } from '../services/api';
-import type { ExpensesResponse, ExpenseCategory, UserProfile, Expense } from '../types';
+import { expensesApi, profileApi, budgetsApi } from '../services/api';
+import type { ExpensesResponse, ExpenseCategory, UserProfile, Expense, Budget } from '../types';
 import { CATEGORY_META } from '../types';
 
 // ── Category dot colors ────────────────────────────────
@@ -167,6 +167,7 @@ export default function Home() {
   const [selectedYear,  setSelectedYear]  = useState(now.getFullYear());
   const [data,    setData]    = useState<ExpensesResponse | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
 
@@ -182,13 +183,15 @@ export default function Home() {
     if (!user) return;
     setLoading(true); setError('');
     try {
-      const [result, prof] = await Promise.all([
+      const [result, prof, budg] = await Promise.all([
         expensesApi.getExpenses(selectedMonth, selectedYear),
         profileApi.getProfile(),
+        budgetsApi.list().catch(() => ({ budgets: [] as Budget[] })),
       ]);
       setData(result);
       setDisplayExpenses(result.expenses);
       setProfile(prof);
+      setBudgets(budg.budgets);
     } catch { setError('Failed to load data'); }
     finally  { setLoading(false); }
   }, [user, selectedMonth, selectedYear]);
@@ -248,6 +251,21 @@ export default function Home() {
   const foodSpent   = byCategory['MAISTAS'] ?? 0;
   const foodLimit   = profile?.foodMonthlyLimit ?? 0;
   const foodLeft    = Math.max(0, foodLimit - foodSpent);
+
+  // Budget lookups: TOTAL + per-category monthly limits
+  const budgetMap   = useMemo(() => {
+    const m: Partial<Record<string, number>> = {};
+    budgets.forEach(b => { m[b.category] = b.amount; });
+    return m;
+  }, [budgets]);
+  const totalBudget = budgetMap['TOTAL'] ?? 0;
+  const overCats    = useMemo(
+    () => CATEGORIES.filter(c => {
+      const lim = budgetMap[c];
+      return lim != null && lim > 0 && (byCategory[c] ?? 0) > lim;
+    }),
+    [budgetMap, byCategory],
+  );
 
   const topCats = useMemo(
     () => CATEGORIES
@@ -485,21 +503,30 @@ export default function Home() {
                     const meta    = CATEGORY_META[cat];
                     const dot     = CAT_DOTS[cat];
                     const catSoft = CAT_SOFT[cat];
-                    const pct     = spent > 0 ? (total / spent) * 100 : 0;
+                    const limit   = budgetMap[cat] ?? 0;
+                    const hasLimit = limit > 0;
+                    // Su biudžetu — progresas iki limito; be jo — dalis nuo visų išlaidų
+                    const pct     = hasLimit
+                      ? Math.min(100, (total / limit) * 100)
+                      : spent > 0 ? (total / spent) * 100 : 0;
+                    const over    = hasLimit && total > limit;
                     return (
                       <div key={cat}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span style={{ width: 8, height: 8, borderRadius: 4, background: dot, flexShrink: 0 }} />
                             <span style={{ fontSize: 13, color: 'var(--x-ink-2)' }}>{meta.label}</span>
+                            {over && <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--x-neg)' }}>OVER</span>}
                           </div>
                           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                            <span className="x-mono" style={{ fontSize: 12.5, fontWeight: 500 }}>−{fmt(total)}</span>
-                            <span className="x-mono" style={{ fontSize: 11, color: 'var(--x-mid)', minWidth: 30, textAlign: 'right' }}>{Math.round(pct)}%</span>
+                            <span className="x-mono" style={{ fontSize: 12.5, fontWeight: 500, color: over ? 'var(--x-neg)' : 'var(--x-ink)' }}>−{fmt(total)}</span>
+                            <span className="x-mono" style={{ fontSize: 11, color: 'var(--x-mid)', minWidth: hasLimit ? 52 : 30, textAlign: 'right' }}>
+                              {hasLimit ? `of ${fmtShort(limit)}` : `${Math.round(pct)}%`}
+                            </span>
                           </div>
                         </div>
                         <div style={{ height: 6, background: catSoft, borderRadius: 3, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${pct}%`, background: dot, borderRadius: 3, transition: 'width .5s ease' }} />
+                          <div style={{ height: '100%', width: `${pct}%`, background: over ? 'var(--x-neg)' : dot, borderRadius: 3, transition: 'width .5s ease' }} />
                         </div>
                       </div>
                     );
@@ -538,6 +565,34 @@ export default function Home() {
                           {projected <= income
                             ? `At today's pace you'll save ${fmtShort(income - projected)} this month.`
                             : `Projected spend (${fmtShort(projected)}) exceeds your income.`}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {totalBudget > 0 && (
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <div style={{ width: 3, borderRadius: 2, background: spent > totalBudget ? 'var(--x-neg)' : spent >= totalBudget * 0.85 ? '#e8a020' : 'var(--x-pos)', flexShrink: 0, alignSelf: 'stretch' }} />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>
+                          {spent > totalBudget ? 'Monthly budget exceeded' : `Budget: ${Math.round((spent / totalBudget) * 100)}% used`}
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--x-mid)', lineHeight: 1.55 }}>
+                          {spent > totalBudget
+                            ? `${fmt(spent - totalBudget)} over your ${fmtShort(totalBudget)} monthly budget.`
+                            : `${fmt(totalBudget - spent)} left of ${fmtShort(totalBudget)} this month.`}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {overCats.length > 0 && (
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <div style={{ width: 3, borderRadius: 2, background: 'var(--x-neg)', flexShrink: 0, alignSelf: 'stretch' }} />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>
+                          Category budget{overCats.length > 1 ? 's' : ''} exceeded
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--x-mid)', lineHeight: 1.55 }}>
+                          {overCats.map(c => CATEGORY_META[c].label).join(', ')} — over the monthly limit.
                         </div>
                       </div>
                     </div>

@@ -167,6 +167,27 @@ export default function Transactions() {
         </div>
         <div style={{ flex: 1 }} />
 
+        {/* Export CSV */}
+        <button
+          onClick={() => {
+            const from = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
+            const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
+            const to = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+            expensesApi.exportCsv(from, to);
+          }}
+          disabled={expenses.length === 0}
+          title="Download this month as CSV"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            background: 'var(--x-bg)', border: '1px solid var(--x-hair)', borderRadius: 11,
+            padding: '10px 14px', cursor: expenses.length === 0 ? 'not-allowed' : 'pointer',
+            color: 'var(--x-ink-2)', fontSize: 12.5, fontWeight: 500, fontFamily: 'inherit',
+            opacity: expenses.length === 0 ? .45 : 1,
+          }}>
+          <Ico d={<><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></>} size={14} />
+          <span className="export-label">Export CSV</span>
+        </button>
+
         {/* Month switcher */}
         <div style={{ display: 'flex', alignItems: 'center', background: 'var(--x-bg)', border: '1px solid var(--x-hair)', borderRadius: 11, padding: 4, gap: 2 }}>
           <button onClick={prevMonth}

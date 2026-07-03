@@ -24,6 +24,12 @@ const NAV = [
     exact: false,
   },
   {
+    to: '/stats',
+    label: 'Stats',
+    icon: <Icon d={<><path d="M3 3v18h18"/><path d="M7 15v3M12 9v9M17 5v13"/></>} />,
+    exact: false,
+  },
+  {
     to: '/profile',
     label: 'Profile',
     icon: <Icon d={<><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></>} />,

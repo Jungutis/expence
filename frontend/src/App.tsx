@@ -7,6 +7,7 @@ import CreateRecord from './pages/CreateRecord';
 import Profile from './pages/Profile';
 import QuickAdd from './pages/QuickAdd';
 import Transactions from './pages/Transactions';
+import Stats from './pages/Stats';
 import Sidebar from './components/Sidebar';
 
 /** One-time banner on iOS Safari: prompt user to install as PWA */
@@ -110,6 +111,7 @@ function App() {
                   <Route path="/create"    element={<CreateRecord />} />
                   <Route path="/profile"   element={<Profile />} />
                   <Route path="/transactions" element={<Transactions />} />
+                  <Route path="/stats"     element={<Stats />} />
                   <Route path="/quick-add" element={<QuickAdd />} />
                   <Route path="/login"     element={<Navigate to="/" replace />} />
                   <Route path="*"          element={<Navigate to="/" replace />} />

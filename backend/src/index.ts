@@ -5,6 +5,8 @@ import authRoutes from './routes/auth';
 import expenseRoutes from './routes/expenses';
 import profileRoutes from './routes/profile';
 import pushRoutes from './routes/push';
+import budgetRoutes from './routes/budgets';
+import recurringRoutes from './routes/recurring';
 
 dotenv.config();
 
@@ -41,6 +43,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/push', pushRoutes);
+app.use('/api/budgets', budgetRoutes);
+app.use('/api/recurring', recurringRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {

@@ -18,6 +18,8 @@ model User {
   createdAt        DateTime           @default(now())
   expenses         Expense[]
   pushSubscriptions PushSubscription[]
+  budgets          Budget[]
+  recurringExpenses RecurringExpense[]
 }
 
 model PushSubscription {
@@ -28,6 +30,31 @@ model PushSubscription {
   p256dh    String
   auth      String
   createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Budget {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category String // "TOTAL" arba kategorijos kodas (MAISTAS, KURAS, ...)
+  amount   Float
+
+  @@unique([userId, category])
+}
+
+model RecurringExpense {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category      String
+  amount        Float
+  note          String?
+  dayOfMonth    Int      // 1-28
+  active        Boolean  @default(true)
+  lastAppliedYm String?  // "2026-07" — paskutinis mėnuo, kai išlaida sukurta
+  createdAt     DateTime @default(now())
 
   @@index([userId])
 }
