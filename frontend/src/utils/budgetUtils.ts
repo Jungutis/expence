@@ -192,6 +192,71 @@ export function calculateFoodBudget(
   };
 }
 
+export interface WeeklyBudgetStatus {
+  weekIdx: number;        // 0 = 1-7 d., 1 = 8-14 d., ...
+  totalWeeks: number;
+  weekStartDay: number;
+  weekEndDay: number;
+  weekBudget: number;     // rolling: (mėn. limitas - ankstesnių savaičių išlaidos) / likusios savaitės
+  weekSpent: number;
+  weekRemaining: number;
+  weekUsedPct: number;
+  isExceeded: boolean;
+}
+
+/**
+ * Bendras (visų kategorijų) rolling savaitės biudžetas — ta pati formulė kaip maistui:
+ * savaitės biudžetas = likęs mėnesio biudžetas ÷ likusios savaitės.
+ * Viršijai šią savaitę → kitos savaitės biudžetas susitraukia.
+ */
+export function calculateWeeklyBudget(
+  expenses: Expense[],
+  monthlyBudget: number,
+  month: number,
+  year: number
+): WeeklyBudgetStatus {
+  const now = new Date();
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const todayDay = month === now.getMonth() + 1 && year === now.getFullYear()
+    ? now.getDate()
+    : daysInMonth;
+
+  const weekIdx = Math.floor((todayDay - 1) / 7);
+  const totalWeeks = Math.ceil(daysInMonth / 7);
+  const remainingWeeks = totalWeeks - weekIdx;
+  const weekStartDay = weekIdx * 7 + 1;
+  const weekEndDay = Math.min((weekIdx + 1) * 7, daysInMonth);
+  const weekStart = new Date(year, month - 1, weekStartDay, 0, 0, 0);
+  const weekEnd = new Date(year, month - 1, weekEndDay, 23, 59, 59, 999);
+
+  const previousWeeksSpent = expenses
+    .filter((e) => new Date(e.date) < weekStart)
+    .reduce((s, e) => s + e.amount, 0);
+
+  const weekSpent = expenses
+    .filter((e) => {
+      const d = new Date(e.date);
+      return d >= weekStart && d <= weekEnd;
+    })
+    .reduce((s, e) => s + e.amount, 0);
+
+  const weekBudget = remainingWeeks > 0
+    ? Math.max(0, monthlyBudget - previousWeeksSpent) / remainingWeeks
+    : 0;
+
+  return {
+    weekIdx,
+    totalWeeks,
+    weekStartDay,
+    weekEndDay,
+    weekBudget,
+    weekSpent,
+    weekRemaining: Math.max(0, weekBudget - weekSpent),
+    weekUsedPct: weekBudget > 0 ? Math.min(100, (weekSpent / weekBudget) * 100) : 0,
+    isExceeded: weekBudget > 0 && weekSpent >= weekBudget,
+  };
+}
+
 /** Grąžina kiek % pajamų sudarė mėnesio išlaidos */
 export function calcIncomeRatio(total: number, salary: number): number {
   if (salary <= 0) return 0;

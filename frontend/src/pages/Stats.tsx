@@ -1,10 +1,13 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { expensesApi } from '../services/api';
-import type { MonthStat } from '../types';
+import { expensesApi, profileApi, budgetsApi } from '../services/api';
+import type { MonthStat, UserProfile, Budget, Expense } from '../types';
 import { useCategories } from '../hooks/useCategories';
+import CalendarHeatmap from '../components/CalendarHeatmap';
 
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DOW = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const DAYPARTS = ['Morning 6–11', 'Day 11–17', 'Evening 17–22', 'Night 22–6'];
 
 const fmt      = (n: number) => `${Math.abs(n).toFixed(2)} €`;
 const fmtShort = (n: number) => n >= 1000 ? `${(n/1000).toFixed(1)}k €` : `${Math.round(n)} €`;
@@ -44,7 +47,13 @@ function MonthBars({ months, height = 160 }: { months: MonthStat[]; height?: num
 export default function Stats() {
   const { user } = useAuth();
   const { metaFor } = useCategories();
-  const [months, setMonths]   = useState<MonthStat[]>([]);
+  const now = new Date();
+
+  const [allMonths, setAllMonths]   = useState<MonthStat[]>([]);
+  const [timeHeatmap, setTimeHeatmap] = useState<number[][]>([]);
+  const [profile, setProfile]       = useState<UserProfile | null>(null);
+  const [budgets, setBudgets]       = useState<Budget[]>([]);
+  const [curExpenses, setCurExpenses] = useState<Expense[]>([]);
   const [range, setRange]     = useState<6 | 12>(6);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
@@ -52,14 +61,28 @@ export default function Stats() {
   useEffect(() => {
     if (!user) return;
     setLoading(true); setError('');
-    expensesApi.getStats(range)
-      .then(r => setMonths(r.months))
+    // Visada imam 13 mėn. — YoY palyginimui ir vidurkiams; grafike rodom pasirinktą rėžį
+    Promise.all([
+      expensesApi.getStats(13),
+      profileApi.getProfile().catch(() => null),
+      budgetsApi.list().catch(() => ({ budgets: [] as Budget[] })),
+      expensesApi.getExpenses(now.getMonth() + 1, now.getFullYear()).catch(() => ({ expenses: [] as Expense[] })),
+    ])
+      .then(([stats, prof, budg, cur]) => {
+        setAllMonths(stats.months);
+        setTimeHeatmap(stats.timeHeatmap ?? []);
+        setProfile(prof);
+        setBudgets(budg.budgets);
+        setCurExpenses(cur.expenses);
+      })
       .catch(() => setError('Failed to load statistics'))
       .finally(() => setLoading(false));
-  }, [user, range]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
-  const current  = months[months.length - 1];
-  const previous = months[months.length - 2];
+  const months   = useMemo(() => allMonths.slice(-range), [allMonths, range]);
+  const current  = allMonths[allMonths.length - 1];
+  const previous = allMonths[allMonths.length - 2];
 
   const derived = useMemo(() => {
     if (months.length === 0) return null;
@@ -72,6 +95,85 @@ export default function Stats() {
       : null;
     return { avg, biggest, totalAll, delta };
   }, [months, current, previous]);
+
+  // ── Prognozė su rėžiu (pagal šio mėnesio dienų svyravimą) ──
+  const forecast = useMemo(() => {
+    if (curExpenses.length === 0) return null;
+    const today = now.getDate();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    if (today >= daysInMonth) return null;
+    const daily = Array.from({ length: today }, () => 0);
+    let spent = 0;
+    for (const e of curExpenses) {
+      const d = new Date(e.date).getDate();
+      if (d <= today) daily[d - 1] += e.amount;
+      spent += e.amount;
+    }
+    const mean = daily.reduce((s, v) => s + v, 0) / today;
+    const variance = daily.reduce((s, v) => s + (v - mean) ** 2, 0) / today;
+    const std = Math.sqrt(variance);
+    const remaining = daysInMonth - today;
+    return {
+      spent,
+      mid: spent + mean * remaining,
+      low: spent + Math.max(0, mean - std * 0.6) * remaining,
+      high: spent + (mean + std * 0.6) * remaining,
+      daysLeft: remaining,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [curExpenses]);
+
+  // ── Anomalijos: kategorija smarkiai virš savo vidurkio ──
+  const anomalies = useMemo(() => {
+    if (!current || allMonths.length < 3) return [];
+    const prior = allMonths.slice(0, -1);
+    const out: { cat: string; cur: number; avg: number; pct: number }[] = [];
+    for (const [cat, curVal] of Object.entries(current.byCategory)) {
+      const cur = curVal ?? 0;
+      const vals = prior.map(m => m.byCategory[cat] ?? 0).filter(v => v > 0);
+      if (vals.length < 2 || cur <= 0) continue;
+      const avg = vals.reduce((s, v) => s + v, 0) / vals.length;
+      if (avg > 0 && cur > avg * 1.5 && cur - avg > 10) {
+        out.push({ cat, cur, avg, pct: ((cur - avg) / avg) * 100 });
+      }
+    }
+    return out.sort((a, b) => b.pct - a.pct).slice(0, 3);
+  }, [current, allMonths]);
+
+  // ── Metai prieš metus: šis mėnuo vs tas pats mėnuo pernai ──
+  const yoy = useMemo(() => {
+    if (!current || allMonths.length < 13) return null;
+    const lastYear = allMonths.find(m => m.month === current.month && m.year === current.year - 1);
+    if (!lastYear || lastYear.total <= 0) return null;
+    return {
+      lastYear,
+      pct: ((current.total - lastYear.total) / lastYear.total) * 100,
+    };
+  }, [current, allMonths]);
+
+  // ── Sutaupymo norma per mėnesius (be dabartinio — jis nebaigtas) ──
+  const savingsRates = useMemo(() => {
+    const salary = profile?.salary ?? 0;
+    if (salary <= 0) return null;
+    const closed = allMonths.slice(-13, -1).filter(m => m.total > 0);
+    if (closed.length === 0) return null;
+    return closed.map(m => ({
+      ym: m.ym, month: m.month,
+      rate: ((salary - m.total) / salary) * 100,
+    }));
+  }, [allMonths, profile]);
+
+  // ── Biudžeto disciplina: kiek mėnesių tilpo į limitą ──
+  const discipline = useMemo(() => {
+    const catBudgets = budgets.filter(b => b.category !== 'TOTAL' && b.amount > 0);
+    if (catBudgets.length === 0) return [];
+    const closed = allMonths.slice(0, -1).filter(m => m.total > 0);
+    if (closed.length === 0) return [];
+    return catBudgets.map(b => {
+      const hit = closed.filter(m => (m.byCategory[b.category] ?? 0) <= b.amount).length;
+      return { cat: b.category, limit: b.amount, hit, of: closed.length };
+    }).sort((a, b) => (b.hit / b.of) - (a.hit / a.of));
+  }, [budgets, allMonths]);
 
   // Category totals over whole range, for the breakdown card
   const catTotals = useMemo(() => {
@@ -88,6 +190,7 @@ export default function Stats() {
   }, [months]);
 
   const rangeTotal = derived?.totalAll ?? 0;
+  const heatMax = useMemo(() => Math.max(1, ...timeHeatmap.flat()), [timeHeatmap]);
 
   if (!user) return null;
 
@@ -141,12 +244,19 @@ export default function Stats() {
               <div className="x-num" style={{ fontSize: 36, fontWeight: 600, letterSpacing: -1, lineHeight: 1, marginTop: 4 }}>
                 {fmt(current?.total ?? 0)}
               </div>
-              {derived?.delta != null && (
-                <div style={{ fontSize: 12.5, marginTop: 12, opacity: .85 }}>
-                  {derived.delta <= 0 ? '↓' : '↑'} {Math.abs(derived.delta).toFixed(0)}% vs {previous ? MONTHS_SHORT[previous.month - 1] : 'last month'}
-                  {derived.delta <= 0 ? ' — nice!' : ''}
-                </div>
-              )}
+              <div style={{ fontSize: 12.5, marginTop: 12, opacity: .85, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {derived?.delta != null && (
+                  <span>
+                    {derived.delta <= 0 ? '↓' : '↑'} {Math.abs(derived.delta).toFixed(0)}% vs {previous ? MONTHS_SHORT[previous.month - 1] : 'last month'}
+                    {derived.delta <= 0 ? ' — nice!' : ''}
+                  </span>
+                )}
+                {yoy && (
+                  <span>
+                    {yoy.pct <= 0 ? '↓' : '↑'} {Math.abs(yoy.pct).toFixed(0)}% vs {MONTHS_SHORT[yoy.lastYear.month - 1]} {yoy.lastYear.year} ({fmt(yoy.lastYear.total)})
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="x-card">
@@ -161,18 +271,56 @@ export default function Stats() {
               </div>
             </div>
 
-            <div className="x-card">
-              <div style={{ fontSize: 11, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500, marginBottom: 6 }}>
-                Biggest month
+            {forecast ? (
+              <div className="x-card">
+                <div style={{ fontSize: 11, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500, marginBottom: 6 }}>
+                  Month-end forecast
+                </div>
+                <div className="x-num" style={{ fontSize: 26, fontWeight: 600, letterSpacing: -0.8, lineHeight: 1.1, marginTop: 4 }}>
+                  {fmtShort(forecast.low)}–{fmtShort(forecast.high)}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--x-mid)', marginTop: 10 }}>
+                  Most likely ~<span className="x-mono" style={{ color: 'var(--x-ink-2)' }}>{fmtShort(forecast.mid)}</span> · {forecast.daysLeft} days left
+                </div>
+                <div style={{ fontSize: 11.5, color: 'var(--x-mid-2)', marginTop: 3 }}>
+                  Range reflects your daily variance
+                </div>
               </div>
-              <div className="x-num" style={{ fontSize: 30, fontWeight: 600, letterSpacing: -1, lineHeight: 1, marginTop: 4 }}>
-                {fmt(derived?.biggest.total ?? 0)}
+            ) : (
+              <div className="x-card">
+                <div style={{ fontSize: 11, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500, marginBottom: 6 }}>
+                  Biggest month
+                </div>
+                <div className="x-num" style={{ fontSize: 30, fontWeight: 600, letterSpacing: -1, lineHeight: 1, marginTop: 4 }}>
+                  {fmt(derived?.biggest.total ?? 0)}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--x-mid)', marginTop: 12 }}>
+                  {derived ? `${MONTHS_SHORT[derived.biggest.month - 1]} ${derived.biggest.year}` : '—'}
+                </div>
               </div>
-              <div style={{ fontSize: 12, color: 'var(--x-mid)', marginTop: 12 }}>
-                {derived ? `${MONTHS_SHORT[derived.biggest.month - 1]} ${derived.biggest.year}` : '—'}
+            )}
+          </div>
+
+          {/* ── Anomalies ── */}
+          {anomalies.length > 0 && (
+            <div className="x-card" style={{ borderColor: 'rgba(193,75,58,.25)' }}>
+              <div style={{ fontSize: 14.5, fontWeight: 600, letterSpacing: -0.2, marginBottom: 12 }}>
+                ⚡ Unusual this month
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {anomalies.map(a => (
+                  <div key={a.cat} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 15 }}>{metaFor(a.cat).emoji}</span>
+                    <span style={{ fontSize: 13, color: 'var(--x-ink-2)', flex: 1 }}>{metaFor(a.cat).label}</span>
+                    <span className="x-mono" style={{ fontSize: 12.5 }}>{fmt(a.cur)}</span>
+                    <span className="x-mono" style={{ fontSize: 12, fontWeight: 600, color: 'var(--x-neg)' }}>
+                      +{a.pct.toFixed(0)}% vs avg {fmtShort(a.avg)}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
+          )}
 
           {/* ── Monthly chart ── */}
           <div className="x-card">
@@ -262,6 +410,108 @@ export default function Stats() {
               )}
             </div>
           </div>
+
+          {/* ── Time heatmap + calendar ── */}
+          <div className="pulse-row-2">
+            <div className="x-card">
+              <div style={{ fontSize: 14.5, fontWeight: 600, letterSpacing: -0.2, marginBottom: 2 }}>When you spend</div>
+              <div style={{ fontSize: 12, color: 'var(--x-mid)', marginBottom: 14 }}>Last 13 months · darker = more spent</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '80px repeat(7, 1fr)', gap: 4, alignItems: 'center' }}>
+                <div />
+                {DOW.map(d => (
+                  <div key={d} style={{ fontSize: 10, color: 'var(--x-mid-2)', textAlign: 'center', textTransform: 'uppercase' }}>{d}</div>
+                ))}
+                {DAYPARTS.map((part, pi) => (
+                  <Fragment key={part}>
+                    <div style={{ fontSize: 10.5, color: 'var(--x-mid)', whiteSpace: 'nowrap' }}>{part}</div>
+                    {DOW.map((_, di) => {
+                      const v = timeHeatmap[di]?.[pi] ?? 0;
+                      const a = v > 0 ? 0.12 + 0.78 * (v / heatMax) : 0;
+                      return (
+                        <div key={`${pi}-${di}`}
+                          title={`${DOW[di]} · ${part}: ${fmt(v)}`}
+                          style={{
+                            height: 30, borderRadius: 6,
+                            background: v > 0 ? `rgba(74,106,138,${a})` : 'var(--x-paper)',
+                            border: '1px solid var(--x-hair)',
+                          }} />
+                      );
+                    })}
+                  </Fragment>
+                ))}
+              </div>
+            </div>
+
+            <CalendarHeatmap />
+          </div>
+
+          {/* ── Savings rate + discipline ── */}
+          {(savingsRates || discipline.length > 0) && (
+            <div className="pulse-row-2">
+              {savingsRates ? (
+                <div className="x-card">
+                  <div style={{ fontSize: 14.5, fontWeight: 600, letterSpacing: -0.2, marginBottom: 2 }}>Savings rate</div>
+                  <div style={{ fontSize: 12, color: 'var(--x-mid)', marginBottom: 14 }}>
+                    (income − spending) ÷ income · target 20%
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 120, position: 'relative' }}>
+                    {/* Target line at 20% (skalė 0–60%) */}
+                    <div style={{ position: 'absolute', left: 0, right: 0, bottom: `${(20 / 60) * 100}%`, borderTop: '1.5px dashed var(--x-hair-2)' }} />
+                    {savingsRates.map(s => {
+                      const clamped = Math.max(0, Math.min(60, s.rate));
+                      const neg = s.rate < 0;
+                      return (
+                        <div key={s.ym} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, height: '100%', justifyContent: 'flex-end' }}
+                          title={`${MONTHS_SHORT[s.month - 1]}: ${s.rate.toFixed(0)}%`}>
+                          <span className="x-mono" style={{ fontSize: 9.5, color: neg ? 'var(--x-neg)' : s.rate >= 20 ? 'var(--x-pos)' : 'var(--x-mid)', fontWeight: 600 }}>
+                            {s.rate.toFixed(0)}%
+                          </span>
+                          <div style={{
+                            width: '100%', maxWidth: 40,
+                            height: `${Math.max(3, (clamped / 60) * 100)}%`,
+                            borderRadius: 5,
+                            background: neg ? 'var(--x-neg)' : s.rate >= 20 ? 'var(--x-pos)' : 'var(--x-paper-2)',
+                            opacity: neg ? .8 : 1,
+                          }} />
+                          <span style={{ fontSize: 10, color: 'var(--x-mid)' }}>{MONTHS_SHORT[s.month - 1]}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : <div />}
+
+              {discipline.length > 0 && (
+                <div className="x-card">
+                  <div style={{ fontSize: 14.5, fontWeight: 600, letterSpacing: -0.2, marginBottom: 2 }}>Budget discipline</div>
+                  <div style={{ fontSize: 12, color: 'var(--x-mid)', marginBottom: 14 }}>
+                    Months within the limit (closed months only)
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {discipline.map(d => {
+                      const rate = d.of > 0 ? d.hit / d.of : 0;
+                      return (
+                        <div key={d.cat}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                            <span style={{ fontSize: 13, color: 'var(--x-ink-2)' }}>
+                              {metaFor(d.cat).emoji} {metaFor(d.cat).label}
+                              <span style={{ fontSize: 11, color: 'var(--x-mid)' }}> · limit {fmtShort(d.limit)}</span>
+                            </span>
+                            <span className="x-mono" style={{ fontSize: 12, fontWeight: 600, color: rate >= 0.8 ? 'var(--x-pos)' : rate >= 0.5 ? 'var(--x-ink-2)' : 'var(--x-neg)' }}>
+                              {d.hit}/{d.of}
+                            </span>
+                          </div>
+                          <div style={{ height: 6, background: 'var(--x-paper-2)', borderRadius: 3, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${rate * 100}%`, borderRadius: 3, background: rate >= 0.8 ? 'var(--x-pos)' : rate >= 0.5 ? 'var(--x-accent)' : 'var(--x-neg)' }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

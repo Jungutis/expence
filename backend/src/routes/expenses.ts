@@ -35,16 +35,25 @@ router.get('/stats', async (req: AuthRequest, res: Response): Promise<void> => {
     }
     const byYm = new Map(buckets.map(b => [b.ym, b]));
 
+    // Laiko heatmap: 7 savaitės dienos (Pr..Sk) × 4 paros dalys (rytas/diena/vakaras/naktis)
+    const timeHeatmap: number[][] = Array.from({ length: 7 }, () => [0, 0, 0, 0]);
+
     for (const e of expenses) {
       const d = new Date(e.date);
       const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const bucket = byYm.get(ym);
-      if (!bucket) continue;
-      bucket.total = Math.round((bucket.total + e.amount) * 100) / 100;
-      bucket.byCategory[e.category] = Math.round(((bucket.byCategory[e.category] || 0) + e.amount) * 100) / 100;
+      if (bucket) {
+        bucket.total = Math.round((bucket.total + e.amount) * 100) / 100;
+        bucket.byCategory[e.category] = Math.round(((bucket.byCategory[e.category] || 0) + e.amount) * 100) / 100;
+      }
+
+      const dow = (d.getDay() + 6) % 7; // 0 = pirmadienis
+      const h = d.getHours();
+      const part = h >= 6 && h < 11 ? 0 : h >= 11 && h < 17 ? 1 : h >= 17 && h < 22 ? 2 : 3;
+      timeHeatmap[dow][part] = Math.round((timeHeatmap[dow][part] + e.amount) * 100) / 100;
     }
 
-    res.json({ months: buckets });
+    res.json({ months: buckets, timeHeatmap });
   } catch (error) {
     console.error('Get stats error:', error);
     res.status(500).json({ error: 'Serverio klaida' });

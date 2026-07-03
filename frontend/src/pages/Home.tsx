@@ -4,6 +4,8 @@ import { useAuth } from '../hooks/useAuth';
 import { expensesApi, profileApi, budgetsApi, recurringApi } from '../services/api';
 import type { ExpensesResponse, ExpenseCategory, UserProfile, Expense, Budget, RecurringExpense } from '../types';
 import { useCategories } from '../hooks/useCategories';
+import { calculateWeeklyBudget } from '../utils/budgetUtils';
+import MonthCloseReport from '../components/MonthCloseReport';
 
 const MONTHS = ['January','February','March','April','May','June',
   'July','August','September','October','November','December'];
@@ -283,6 +285,14 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCurrentMonth, totalBudget, income, recurring, spent, daysInMonth]);
 
+  // ── Savaitinis rolling biudžetas (visos kategorijos) ──
+  const weekly = useMemo(() => {
+    if (!isCurrentMonth) return null;
+    const base = totalBudget > 0 ? totalBudget : income > 0 ? income : 0;
+    if (base <= 0) return null;
+    return calculateWeeklyBudget(displayExpenses, base, selectedMonth, selectedYear);
+  }, [isCurrentMonth, totalBudget, income, displayExpenses, selectedMonth, selectedYear]);
+
   // Chart uses original fetch data — doesn't re-animate on delete
   const dayData = useMemo(() => {
     if (!data || !isCurrentMonth) return [];
@@ -352,6 +362,9 @@ export default function Home() {
         return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--pulse-gap, 14px)' }} className={isFirstRender ? 'anim-up' : ''}>
 
+          {/* ── Praėjusio mėnesio ataskaita (rodoma 1-7 d.) ── */}
+          {isCurrentMonth && <MonthCloseReport />}
+
           {/* ── Safe to spend today ── */}
           {safeToSpend && (
             <div className="x-card" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px' }}>
@@ -380,6 +393,28 @@ export default function Home() {
                   <div>incl. {fmt(safeToSpend.upcomingRecurring)} upcoming bills</div>
                 )}
               </div>
+
+              {/* This week — rolling weekly budget */}
+              {weekly && weekly.weekBudget > 0 && (
+                <div style={{ borderLeft: '1px solid var(--x-hair)', paddingLeft: 16, minWidth: 150, flexShrink: 0 }}>
+                  <div style={{ fontSize: 11, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500 }}>
+                    Week {weekly.weekIdx + 1}/{weekly.totalWeeks} · days {weekly.weekStartDay}–{weekly.weekEndDay}
+                  </div>
+                  <div className="x-mono" style={{ fontSize: 14.5, fontWeight: 600, marginTop: 3, color: weekly.isExceeded ? 'var(--x-neg)' : 'var(--x-ink)' }}>
+                    {fmt(weekly.weekSpent)} <span style={{ fontSize: 11.5, color: 'var(--x-mid)', fontWeight: 400 }}>of {fmt(weekly.weekBudget)}</span>
+                  </div>
+                  <div style={{ height: 5, borderRadius: 3, background: 'var(--x-paper-2)', marginTop: 7, overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%', borderRadius: 3, transition: 'width .5s ease',
+                      width: `${weekly.weekUsedPct}%`,
+                      background: weekly.isExceeded ? 'var(--x-neg)' : weekly.weekUsedPct >= 85 ? '#e8a020' : 'var(--x-accent)',
+                    }} />
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--x-mid)', marginTop: 5 }}>
+                    {weekly.isExceeded ? 'Next week shrinks' : `${fmt(weekly.weekRemaining)} left this week`}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

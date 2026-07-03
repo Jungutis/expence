@@ -57,7 +57,7 @@ export const expensesApi = {
   deleteExpense: (id: string): Promise<void> =>
     api.delete(`/expenses/${id}`).then((r) => r.data),
 
-  getStats: (months = 6): Promise<{ months: MonthStat[] }> =>
+  getStats: (months = 6): Promise<{ months: MonthStat[]; timeHeatmap: number[][] }> =>
     api.get('/expenses/stats', { params: { months } }).then((r) => r.data),
 
   // Atsisiunčia CSV ir paleidžia naršyklės download
