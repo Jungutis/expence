@@ -151,6 +151,18 @@ export default function Transactions() {
         </div>
         <div style={{ flex: 1 }} />
 
+        {/* Import CSV */}
+        <Link to="/import" title="Import bank CSV"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            background: 'var(--x-bg)', border: '1px solid var(--x-hair)', borderRadius: 11,
+            padding: '10px 14px', color: 'var(--x-ink-2)', fontSize: 12.5, fontWeight: 500,
+            textDecoration: 'none',
+          }}>
+          <Ico d={<><path d="M12 15V3M7 8l5-5 5 5"/><path d="M5 21h14"/></>} size={14} />
+          <span className="export-label">Import</span>
+        </Link>
+
         {/* Export CSV */}
         <button
           onClick={() => {

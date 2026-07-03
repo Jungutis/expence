@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthContext, useAuthState } from './hooks/useAuth';
 import { CategoriesProvider } from './hooks/useCategories';
+import { initOfflineSync } from './utils/offlineQueue';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import CreateRecord from './pages/CreateRecord';
@@ -9,6 +10,8 @@ import Profile from './pages/Profile';
 import QuickAdd from './pages/QuickAdd';
 import Transactions from './pages/Transactions';
 import Stats from './pages/Stats';
+import Import from './pages/Import';
+import Report from './pages/Report';
 import Sidebar from './components/Sidebar';
 
 /** One-time banner on iOS Safari: prompt user to install as PWA */
@@ -64,6 +67,11 @@ function App() {
   const auth = useAuthState();
   const shellRef = useRef<HTMLDivElement>(null);
 
+  // Offline eilė: prisijungus prie tinklo išsiunčia lokaliai išsaugotas išlaidas
+  useEffect(() => {
+    if (auth.user) initOfflineSync();
+  }, [auth.user]);
+
   useEffect(() => {
     const shell = shellRef.current;
     const main = shell?.querySelector('.pulse-main') as HTMLElement | null;
@@ -114,6 +122,8 @@ function App() {
                   <Route path="/profile"   element={<Profile />} />
                   <Route path="/transactions" element={<Transactions />} />
                   <Route path="/stats"     element={<Stats />} />
+                  <Route path="/import"    element={<Import />} />
+                  <Route path="/report"    element={<Report />} />
                   <Route path="/quick-add" element={<QuickAdd />} />
                   <Route path="/login"     element={<Navigate to="/" replace />} />
                   <Route path="*"          element={<Navigate to="/" replace />} />

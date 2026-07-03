@@ -5,6 +5,7 @@ import type { ExpenseCategory } from '../types';
 import { useCategories } from '../hooks/useCategories';
 import { calculateFoodBudget } from '../utils/budgetUtils';
 import type { FoodBudgetStatus } from '../utils/budgetUtils';
+import { enqueueExpense, isNetworkError } from '../utils/offlineQueue';
 import axios from 'axios';
 
 const toYmd = (d: Date) =>
@@ -24,6 +25,29 @@ export default function CreateRecord() {
   const [budgetStatus, setBudgetStatus] = useState<FoodBudgetStatus | null>(null);
   const [amountTouched, setAmountTouched] = useState(false);
   const [amountError,   setAmountError]   = useState('');
+  const [suggested, setSuggested]         = useState(false);
+  const [savedOffline, setSavedOffline]   = useState(false);
+
+  // Auto-kategorija: vedant pastabą pasiūloma kategorija iš tavo istorijos
+  useEffect(() => {
+    const q = note.trim();
+    if (q.length < 2) return;
+    const t = setTimeout(() => {
+      expensesApi.suggestCategory(q)
+        .then(({ category: sug }) => {
+          if (sug) {
+            // Taikom tik jei vartotojas dar nepasirinkęs arba ankstesnis pasirinkimas irgi buvo pasiūlytas
+            setCategory(prev => {
+              if (prev === null || suggested) { setSuggested(true); return sug; }
+              return prev;
+            });
+          }
+        })
+        .catch(() => {});
+    }, 450);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note]);
 
   const validateAmount = (val: string): string => {
     if (!val) return 'Amount is required';
@@ -88,7 +112,14 @@ export default function CreateRecord() {
       setTimeout(() => setExiting(true), 500);
       setTimeout(() => navigate('/'), 820);
     } catch (err) {
-      if (axios.isAxiosError(err)) setError(err.response?.data?.error || 'Something went wrong.');
+      if (isNetworkError(err)) {
+        // Nėra ryšio — įrašom į offline eilę, išsiųsim automatiškai grįžus internetui
+        enqueueExpense({ category, amount: parsed, note: note.trim() || undefined, date });
+        setSavedOffline(true);
+        setSuccess(true);
+        setTimeout(() => setExiting(true), 900);
+        setTimeout(() => navigate('/'), 1220);
+      } else if (axios.isAxiosError(err)) setError(err.response?.data?.error || 'Something went wrong.');
       else setError('Unexpected error. Try again.');
     } finally { setLoading(false); }
   };
@@ -115,7 +146,14 @@ export default function CreateRecord() {
               <path d="M5 13l4 4L19 7"/>
             </svg>
           </div>
-          <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--x-ink)', letterSpacing: -0.3 }}>Saved!</div>
+          <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--x-ink)', letterSpacing: -0.3 }}>
+            {savedOffline ? 'Saved offline' : 'Saved!'}
+          </div>
+          {savedOffline && (
+            <div style={{ fontSize: 12.5, color: 'var(--x-mid)', marginTop: 6 }}>
+              Will sync automatically when you're back online
+            </div>
+          )}
         </div>
       </div>
     );
@@ -167,7 +205,7 @@ export default function CreateRecord() {
               const blocked  = cat === 'MAISTAS' && !!budgetStatus?.isMonthlyExceeded;
               return (
                 <button key={cat} type="button" disabled={blocked}
-                  onClick={() => { if (!blocked) { setCategory(cat); setError(''); } }}
+                  onClick={() => { if (!blocked) { setCategory(cat); setSuggested(false); setError(''); } }}
                   style={{
                     position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7,
                     padding: '14px 10px', borderRadius: 11, cursor: blocked ? 'not-allowed' : 'pointer',
@@ -240,7 +278,12 @@ export default function CreateRecord() {
           <textarea value={note} maxLength={200} rows={2} placeholder="e.g. Lidl groceries, fuel..."
             onChange={e => setNote(e.target.value)}
             className="x-textarea" />
-          <div style={{ fontSize: 11, color: 'var(--x-mid-2)', textAlign: 'right', marginTop: 4 }}>{note.length}/200</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+            <div style={{ fontSize: 11.5, color: 'var(--x-accent)', fontWeight: 500, minHeight: 15 }}>
+              {suggested && category ? `✨ ${metaFor(category).emoji} ${metaFor(category).label} suggested from your history` : ''}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--x-mid-2)' }}>{note.length}/200</div>
+          </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--x-hair)' }}>
             <label className="x-label" style={{ margin: 0, flexShrink: 0 }}>Date</label>

@@ -60,6 +60,15 @@ export const expensesApi = {
   getStats: (months = 6): Promise<{ months: MonthStat[]; timeHeatmap: number[][] }> =>
     api.get('/expenses/stats', { params: { months } }).then((r) => r.data),
 
+  suggestCategory: (note: string): Promise<{ category: string | null }> =>
+    api.get('/expenses/suggest', { params: { note } }).then((r) => r.data),
+
+  bulkImport: (items: { category: string; amount: number; note?: string; date: string }[]): Promise<{ created: number }> =>
+    api.post('/expenses/bulk', { items }).then((r) => r.data),
+
+  getSubscriptions: (): Promise<{ subscriptions: { note: string; category: string; monthlyCost: number; months: number; yearlyCost: number }[] }> =>
+    api.get('/expenses/subscriptions').then((r) => r.data),
+
   // Atsisiunčia CSV ir paleidžia naršyklės download
   exportCsv: async (from?: string, to?: string): Promise<void> => {
     const response = await api.get('/expenses/export', {
@@ -100,6 +109,31 @@ export const categoriesApi = {
 
   remove: (id: string): Promise<{ deleted?: boolean; archived?: boolean }> =>
     api.delete(`/categories/${id}`).then((r) => r.data),
+};
+
+export interface Debt {
+  id: string;
+  name: string;
+  type: 'BORROWED' | 'LENT';
+  principal: number;
+  remaining: number;
+  note?: string | null;
+  createdAt: string;
+  closedAt?: string | null;
+}
+
+export const debtsApi = {
+  list: (): Promise<{ debts: Debt[] }> =>
+    api.get('/debts').then((r) => r.data),
+
+  create: (data: { name: string; type: 'BORROWED' | 'LENT'; principal: number; note?: string }): Promise<Debt> =>
+    api.post('/debts', data).then((r) => r.data),
+
+  pay: (id: string, amount: number): Promise<Debt> =>
+    api.post(`/debts/${id}/payment`, { amount }).then((r) => r.data),
+
+  remove: (id: string): Promise<void> =>
+    api.delete(`/debts/${id}`).then((r) => r.data),
 };
 
 export const recurringApi = {

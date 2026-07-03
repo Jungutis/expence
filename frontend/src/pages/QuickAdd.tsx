@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { expensesApi } from '../services/api';
 import type { ExpenseCategory } from '../types';
 import { useCategories } from '../hooks/useCategories';
+import { enqueueExpense, isNetworkError } from '../utils/offlineQueue';
 
 type Step = 'confirm' | 'form' | 'done';
 
@@ -23,9 +24,19 @@ export default function QuickAdd() {
       await expensesApi.createExpense({ category, amount: parseFloat(amount) });
       setStep('done');
       setTimeout(() => navigate('/'), 1400);
-    } catch {
-      setError('Nepavyko išsaugoti. Bandyk dar kartą.');
-      setSaving(false);
+    } catch (err) {
+      if (isNetworkError(err)) {
+        enqueueExpense({
+          category,
+          amount: parseFloat(amount),
+          date: new Date().toISOString().slice(0, 10),
+        });
+        setStep('done');
+        setTimeout(() => navigate('/'), 1400);
+      } else {
+        setError('Nepavyko išsaugoti. Bandyk dar kartą.');
+        setSaving(false);
+      }
     }
   };
 

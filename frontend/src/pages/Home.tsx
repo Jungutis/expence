@@ -285,6 +285,31 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCurrentMonth, totalBudget, income, recurring, spent, daysInMonth]);
 
+  // ── Artėjantys mokėjimai per 30 d. (recurring) ────────
+  const upcomingBills = useMemo(() => {
+    if (!isCurrentMonth) return [];
+    const list: { date: Date; item: RecurringExpense }[] = [];
+    const horizon = new Date(now.getTime() + 30 * 86400000);
+    for (const r of recurring.filter(x => x.active)) {
+      const thisMonth = new Date(now.getFullYear(), now.getMonth(), r.dayOfMonth);
+      if (thisMonth > now && thisMonth <= horizon) list.push({ date: thisMonth, item: r });
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, r.dayOfMonth);
+      if (nextMonth <= horizon) list.push({ date: nextMonth, item: r });
+    }
+    return list.sort((a, b) => a.date.getTime() - b.date.getTime()).slice(0, 8);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCurrentMonth, recurring]);
+
+  // ── Įrašų serija (streak) šį mėnesį ───────────────────
+  const streak = useMemo(() => {
+    if (!isCurrentMonth) return 0;
+    const days = new Set(displayExpenses.map(e => new Date(e.date).getDate()));
+    let s = 0;
+    for (let d = now.getDate(); d >= 1 && days.has(d); d--) s++;
+    return s;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCurrentMonth, displayExpenses]);
+
   // ── Savaitinis rolling biudžetas (visos kategorijos) ──
   const weekly = useMemo(() => {
     if (!isCurrentMonth) return null;
@@ -317,7 +342,15 @@ export default function Home() {
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 15.5, fontWeight: 600, letterSpacing: -0.2 }}>Overview</h1>
+          <h1 style={{ margin: 0, fontSize: 15.5, fontWeight: 600, letterSpacing: -0.2, display: 'flex', alignItems: 'center', gap: 8 }}>
+            Overview
+            {streak >= 2 && (
+              <span title={`${streak} days in a row with logged expenses`}
+                style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: 'rgba(232,160,32,.12)', color: '#a07d2e', border: '1px solid rgba(232,160,32,.25)' }}>
+                🔥 {streak}-day streak
+              </span>
+            )}
+          </h1>
           <p style={{ margin: 0, fontSize: 12.5, color: 'var(--x-mid)', marginTop: 1 }}>
             {MONTHS[selectedMonth - 1]} {selectedYear}
           </p>
@@ -696,6 +729,38 @@ export default function Home() {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Upcoming bills (30 days) ── */}
+          {upcomingBills.length > 0 && (
+            <div className="x-card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
+                <div style={{ fontSize: 14.5, fontWeight: 600, letterSpacing: -0.2 }}>Upcoming bills · 30 days</div>
+                <div className="x-mono" style={{ fontSize: 12, color: 'var(--x-mid)' }}>
+                  −{fmt(upcomingBills.reduce((s, b) => s + b.item.amount, 0))}
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {upcomingBills.map(({ date, item }, i) => {
+                  const daysAway = Math.ceil((date.getTime() - now.getTime()) / 86400000);
+                  return (
+                    <div key={`${item.id}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span className="x-mono" style={{ fontSize: 11.5, color: daysAway <= 3 ? 'var(--x-neg)' : 'var(--x-mid)', width: 64, flexShrink: 0, fontWeight: daysAway <= 3 ? 600 : 400 }}>
+                        {MONTHS[date.getMonth()].slice(0, 3)} {date.getDate()}
+                      </span>
+                      <span style={{ fontSize: 14 }}>{metaFor(item.category).emoji}</span>
+                      <span style={{ fontSize: 13, color: 'var(--x-ink-2)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.note || metaFor(item.category).label}
+                      </span>
+                      <span style={{ fontSize: 11, color: 'var(--x-mid)', flexShrink: 0 }}>
+                        {daysAway === 1 ? 'tomorrow' : `in ${daysAway} d.`}
+                      </span>
+                      <span className="x-mono" style={{ fontSize: 12.5, fontWeight: 500, flexShrink: 0 }}>−{fmt(item.amount)}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

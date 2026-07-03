@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, Fragment } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { expensesApi, profileApi, budgetsApi } from '../services/api';
 import type { MonthStat, UserProfile, Budget, Expense } from '../types';
@@ -54,9 +55,11 @@ export default function Stats() {
   const [profile, setProfile]       = useState<UserProfile | null>(null);
   const [budgets, setBudgets]       = useState<Budget[]>([]);
   const [curExpenses, setCurExpenses] = useState<Expense[]>([]);
+  const [subs, setSubs]       = useState<{ note: string; category: string; monthlyCost: number; months: number; yearlyCost: number }[]>([]);
   const [range, setRange]     = useState<6 | 12>(6);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
+  const [whatIf, setWhatIf]   = useState<Record<string, number>>({}); // kategorija → sumažinimo %
 
   useEffect(() => {
     if (!user) return;
@@ -67,13 +70,15 @@ export default function Stats() {
       profileApi.getProfile().catch(() => null),
       budgetsApi.list().catch(() => ({ budgets: [] as Budget[] })),
       expensesApi.getExpenses(now.getMonth() + 1, now.getFullYear()).catch(() => ({ expenses: [] as Expense[] })),
+      expensesApi.getSubscriptions().catch(() => ({ subscriptions: [] })),
     ])
-      .then(([stats, prof, budg, cur]) => {
+      .then(([stats, prof, budg, cur, subsR]) => {
         setAllMonths(stats.months);
         setTimeHeatmap(stats.timeHeatmap ?? []);
         setProfile(prof);
         setBudgets(budg.budgets);
         setCurExpenses(cur.expenses);
+        setSubs(subsR.subscriptions);
       })
       .catch(() => setError('Failed to load statistics'))
       .finally(() => setLoading(false));
@@ -192,6 +197,27 @@ export default function Stats() {
   const rangeTotal = derived?.totalAll ?? 0;
   const heatMax = useMemo(() => Math.max(1, ...timeHeatmap.flat()), [timeHeatmap]);
 
+  // ── „Kas būtų, jei" — top kategorijų mėnesio vidurkiai simuliatoriui ──
+  const whatIfCats = useMemo(() => {
+    const closed = allMonths.slice(0, -1).filter(m => m.total > 0);
+    if (closed.length === 0) return [];
+    const acc: Record<string, number> = {};
+    for (const m of closed) {
+      for (const [c, v] of Object.entries(m.byCategory)) {
+        if ((v ?? 0) > 0) acc[c] = (acc[c] ?? 0) + (v ?? 0);
+      }
+    }
+    return Object.entries(acc)
+      .map(([cat, total]) => ({ cat, avgMonthly: total / closed.length }))
+      .sort((a, b) => b.avgMonthly - a.avgMonthly)
+      .slice(0, 4);
+  }, [allMonths]);
+
+  const whatIfYearly = useMemo(
+    () => whatIfCats.reduce((s, c) => s + c.avgMonthly * ((whatIf[c.cat] ?? 0) / 100) * 12, 0),
+    [whatIfCats, whatIf],
+  );
+
   if (!user) return null;
 
   return (
@@ -206,6 +232,15 @@ export default function Stats() {
           </p>
         </div>
         <div style={{ flex: 1 }} />
+
+        <Link to="/report" style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          background: 'var(--x-bg)', border: '1px solid var(--x-hair)', borderRadius: 11,
+          padding: '10px 14px', color: 'var(--x-ink-2)', fontSize: 12.5, fontWeight: 500,
+          textDecoration: 'none',
+        }}>
+          🖨 Report
+        </Link>
 
         {/* Range switcher */}
         <div style={{ display: 'flex', alignItems: 'center', background: 'var(--x-bg)', border: '1px solid var(--x-hair)', borderRadius: 11, padding: 4, gap: 2 }}>
@@ -512,6 +547,80 @@ export default function Stats() {
               )}
             </div>
           )}
+
+          {/* ── What-if simulator + subscriptions ── */}
+          <div className="pulse-row-2">
+            {whatIfCats.length > 0 && (
+              <div className="x-card">
+                <div style={{ fontSize: 14.5, fontWeight: 600, letterSpacing: -0.2, marginBottom: 2 }}>What if…?</div>
+                <div style={{ fontSize: 12, color: 'var(--x-mid)', marginBottom: 16 }}>
+                  Drag to cut a category — see yearly savings
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {whatIfCats.map(({ cat, avgMonthly }) => {
+                    const red = whatIf[cat] ?? 0;
+                    return (
+                      <div key={cat}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                          <span style={{ fontSize: 13, color: 'var(--x-ink-2)' }}>
+                            {metaFor(cat).emoji} {metaFor(cat).label}
+                            <span style={{ fontSize: 11, color: 'var(--x-mid)' }}> · avg {fmtShort(avgMonthly)}/mo</span>
+                          </span>
+                          <span className="x-mono" style={{ fontSize: 12, fontWeight: 600, color: red > 0 ? 'var(--x-pos)' : 'var(--x-mid)' }}>
+                            −{red}%
+                          </span>
+                        </div>
+                        <input type="range" min={0} max={100} step={5} value={red}
+                          onChange={e => setWhatIf(w => ({ ...w, [cat]: parseInt(e.target.value) }))}
+                          style={{ width: '100%', accentColor: 'var(--x-accent)' }} />
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{
+                  marginTop: 16, padding: '12px 16px', borderRadius: 10,
+                  background: whatIfYearly > 0 ? 'rgba(31,138,91,.08)' : 'var(--x-paper)',
+                  border: `1px solid ${whatIfYearly > 0 ? 'rgba(31,138,91,.2)' : 'var(--x-hair)'}`,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                }}>
+                  <span style={{ fontSize: 13, color: 'var(--x-ink-2)' }}>You'd save per year</span>
+                  <span className="x-num" style={{ fontSize: 20, fontWeight: 600, color: whatIfYearly > 0 ? 'var(--x-pos)' : 'var(--x-mid)' }}>
+                    {fmt(whatIfYearly)}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {subs.length > 0 && (
+              <div className="x-card">
+                <div style={{ fontSize: 14.5, fontWeight: 600, letterSpacing: -0.2, marginBottom: 2 }}>Detected recurring payments</div>
+                <div style={{ fontSize: 12, color: 'var(--x-mid)', marginBottom: 14 }}>
+                  Same note, stable amount, 3+ months — worth reviewing
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {subs.slice(0, 8).map(s => (
+                    <div key={s.note} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 14 }}>{metaFor(s.category).emoji}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.note}</div>
+                        <div style={{ fontSize: 11, color: 'var(--x-mid)' }}>{s.months} months</div>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <div className="x-mono" style={{ fontSize: 12.5, fontWeight: 600 }}>{fmt(s.monthlyCost)}/mo</div>
+                        <div className="x-mono" style={{ fontSize: 10.5, color: 'var(--x-neg)' }}>{fmt(s.yearlyCost)}/yr</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--x-hair)', display: 'flex', justifyContent: 'space-between', fontSize: 12.5 }}>
+                  <span style={{ color: 'var(--x-mid)' }}>Total subscriptions</span>
+                  <span className="x-mono" style={{ fontWeight: 600 }}>
+                    {fmt(subs.reduce((s, x) => s + x.monthlyCost, 0))}/mo · {fmt(subs.reduce((s, x) => s + x.yearlyCost, 0))}/yr
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

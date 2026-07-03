@@ -7,6 +7,7 @@ import axios from 'axios';
 import BudgetSettings from '../components/BudgetSettings';
 import RecurringSettings from '../components/RecurringSettings';
 import CategorySettings from '../components/CategorySettings';
+import DebtSettings from '../components/DebtSettings';
 
 export default function Profile() {
   const { user } = useAuth();
@@ -325,6 +326,7 @@ export default function Profile() {
         <CategorySettings />
         <BudgetSettings />
         <RecurringSettings />
+        <DebtSettings />
       </div>
 
       {/* Current settings summary */}

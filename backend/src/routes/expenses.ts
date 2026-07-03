@@ -108,6 +108,149 @@ router.get('/export', async (req: AuthRequest, res: Response): Promise<void> => 
   }
 });
 
+// GET /api/expenses/suggest?note=lidl — kategorijos spėjimas pagal istoriją
+router.get('/suggest', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.userId!;
+    const note = String(req.query.note || '').trim().toLowerCase();
+    if (note.length < 2) {
+      res.json({ category: null });
+      return;
+    }
+
+    const recent = await prisma.expense.findMany({
+      where: { userId, note: { not: null } },
+      orderBy: { date: 'desc' },
+      take: 500,
+      select: { note: true, category: true },
+    });
+
+    const counts: Record<string, number> = {};
+    for (const r of recent) {
+      const n = (r.note || '').toLowerCase();
+      if (!n) continue;
+      if (n.includes(note) || note.includes(n)) {
+        counts[r.category] = (counts[r.category] || 0) + 1;
+      }
+    }
+
+    const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+    res.json({ category: best && best[1] >= 2 ? best[0] : null });
+  } catch (error) {
+    console.error('Suggest error:', error);
+    res.status(500).json({ error: 'Serverio klaida' });
+  }
+});
+
+// POST /api/expenses/bulk — masinis importas iš banko CSV
+router.post('/bulk', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.userId!;
+    const items = req.body.items;
+
+    if (!Array.isArray(items) || items.length === 0 || items.length > 500) {
+      res.status(400).json({ error: 'Pateik 1–500 įrašų' });
+      return;
+    }
+
+    const categories = await ensureCategories(userId);
+    const validCodes = new Set(categories.filter(c => !c.archived).map(c => c.code));
+
+    const now = new Date();
+    const minDate = new Date(now.getFullYear() - 5, 0, 1);
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+    const rows: { userId: string; category: string; amount: number; note: string | null; date: Date }[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      if (!it || typeof it.category !== 'string' || !validCodes.has(it.category)) {
+        res.status(400).json({ error: `Eilutė ${i + 1}: neteisinga kategorija` });
+        return;
+      }
+      const amount = parseFloat(it.amount);
+      if (isNaN(amount) || amount <= 0 || amount > 1_000_000) {
+        res.status(400).json({ error: `Eilutė ${i + 1}: neteisinga suma` });
+        return;
+      }
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(it.date || ''));
+      if (!m) {
+        res.status(400).json({ error: `Eilutė ${i + 1}: neteisinga data (YYYY-MM-DD)` });
+        return;
+      }
+      const d = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]), 12, 0, 0);
+      if (isNaN(d.getTime()) || d < minDate || d > endOfToday) {
+        res.status(400).json({ error: `Eilutė ${i + 1}: data už leistino rėžio` });
+        return;
+      }
+      rows.push({
+        userId,
+        category: it.category,
+        amount: Math.round(amount * 100) / 100,
+        note: typeof it.note === 'string' && it.note.trim() ? it.note.trim().slice(0, 200) : null,
+        date: d,
+      });
+    }
+
+    const result = await prisma.expense.createMany({ data: rows });
+    res.status(201).json({ created: result.count });
+  } catch (error) {
+    console.error('Bulk import error:', error);
+    res.status(500).json({ error: 'Serverio klaida' });
+  }
+});
+
+// GET /api/expenses/subscriptions — aptinka pasikartojančius mokėjimus istorijoje
+router.get('/subscriptions', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.userId!;
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+
+    const expenses = await prisma.expense.findMany({
+      where: { userId, date: { gte: start }, note: { not: null } },
+      select: { note: true, amount: true, date: true, category: true },
+    });
+
+    // Grupuojam pagal normalizuotą pastabą
+    const groups = new Map<string, { note: string; category: string; amounts: number[]; months: Set<string> }>();
+    for (const e of expenses) {
+      const key = (e.note || '').toLowerCase().replace(/\s+/g, ' ').replace(/ ↻$/, '').trim();
+      if (key.length < 3) continue;
+      const ym = `${e.date.getFullYear()}-${e.date.getMonth() + 1}`;
+      const g = groups.get(key);
+      if (g) {
+        g.amounts.push(e.amount);
+        g.months.add(ym);
+      } else {
+        groups.set(key, { note: e.note!, category: e.category, amounts: [e.amount], months: new Set([ym]) });
+      }
+    }
+
+    // Prenumerata: >= 3 skirtingi mėnesiai ir stabili suma (±15% nuo medianos)
+    const subs: { note: string; category: string; monthlyCost: number; months: number; yearlyCost: number }[] = [];
+    for (const g of groups.values()) {
+      if (g.months.size < 3) continue;
+      const sorted = [...g.amounts].sort((a, b) => a - b);
+      const median = sorted[Math.floor(sorted.length / 2)];
+      const stable = g.amounts.filter(a => Math.abs(a - median) <= median * 0.15).length / g.amounts.length;
+      if (stable < 0.7) continue;
+      subs.push({
+        note: g.note.replace(/ ↻$/, ''),
+        category: g.category,
+        monthlyCost: Math.round(median * 100) / 100,
+        months: g.months.size,
+        yearlyCost: Math.round(median * 12 * 100) / 100,
+      });
+    }
+
+    subs.sort((a, b) => b.monthlyCost - a.monthlyCost);
+    res.json({ subscriptions: subs.slice(0, 20) });
+  } catch (error) {
+    console.error('Subscriptions error:', error);
+    res.status(500).json({ error: 'Serverio klaida' });
+  }
+});
+
 // GET /api/expenses?month=5&year=2025
 router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
