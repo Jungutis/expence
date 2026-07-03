@@ -199,6 +199,68 @@ router.post('/bulk', async (req: AuthRequest, res: Response): Promise<void> => {
   }
 });
 
+// GET /api/expenses/inflation — asmeninė infliacija: tų pačių pirkinių kainos pokytis per metus
+router.get('/inflation', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.userId!;
+    const now = new Date();
+    const recentStart = new Date(now.getTime() - 120 * 86400000);   // paskutinės ~4 mėn.
+    const oldStart = new Date(now.getTime() - 485 * 86400000);      // prieš metus ± 3 mėn.
+    const oldEnd = new Date(now.getTime() - 300 * 86400000);
+
+    const expenses = await prisma.expense.findMany({
+      where: { userId, date: { gte: oldStart }, note: { not: null } },
+      select: { note: true, amount: true, date: true },
+    });
+
+    const groups = new Map<string, { note: string; oldAmounts: number[]; newAmounts: number[] }>();
+    for (const e of expenses) {
+      const key = (e.note || '').toLowerCase().replace(/\s+/g, ' ').replace(/ ↻$/, '').trim();
+      if (key.length < 3) continue;
+      let g = groups.get(key);
+      if (!g) {
+        g = { note: (e.note || '').replace(/ ↻$/, ''), oldAmounts: [], newAmounts: [] };
+        groups.set(key, g);
+      }
+      if (e.date >= recentStart) g.newAmounts.push(e.amount);
+      else if (e.date >= oldStart && e.date <= oldEnd) g.oldAmounts.push(e.amount);
+    }
+
+    const median = (arr: number[]) => {
+      const s = [...arr].sort((a, b) => a - b);
+      return s[Math.floor(s.length / 2)];
+    };
+
+    const items: { note: string; oldPrice: number; newPrice: number; pct: number }[] = [];
+    for (const g of groups.values()) {
+      if (g.oldAmounts.length < 2 || g.newAmounts.length < 2) continue;
+      const oldMed = median(g.oldAmounts);
+      const newMed = median(g.newAmounts);
+      if (oldMed <= 0) continue;
+      const pct = ((newMed - oldMed) / oldMed) * 100;
+      if (Math.abs(pct) > 200) continue; // greičiausiai ne tas pats pirkinys
+      items.push({
+        note: g.note,
+        oldPrice: Math.round(oldMed * 100) / 100,
+        newPrice: Math.round(newMed * 100) / 100,
+        pct: Math.round(pct * 10) / 10,
+      });
+    }
+
+    // Bendra infliacija — svertinis vidurkis pagal dabartinę kainą
+    const weight = items.reduce((s, i) => s + i.newPrice, 0);
+    const overallPct = weight > 0
+      ? Math.round(items.reduce((s, i) => s + i.pct * i.newPrice, 0) / weight * 10) / 10
+      : null;
+
+    items.sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
+    res.json({ overallPct, comparable: items.length, items: items.slice(0, 8) });
+  } catch (error) {
+    console.error('Inflation error:', error);
+    res.status(500).json({ error: 'Serverio klaida' });
+  }
+});
+
 // GET /api/expenses/subscriptions — aptinka pasikartojančius mokėjimus istorijoje
 router.get('/subscriptions', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -212,34 +274,58 @@ router.get('/subscriptions', async (req: AuthRequest, res: Response): Promise<vo
     });
 
     // Grupuojam pagal normalizuotą pastabą
-    const groups = new Map<string, { note: string; category: string; amounts: number[]; months: Set<string> }>();
+    const groups = new Map<string, { note: string; category: string; entries: { amount: number; date: Date }[]; months: Set<string> }>();
     for (const e of expenses) {
       const key = (e.note || '').toLowerCase().replace(/\s+/g, ' ').replace(/ ↻$/, '').trim();
       if (key.length < 3) continue;
       const ym = `${e.date.getFullYear()}-${e.date.getMonth() + 1}`;
       const g = groups.get(key);
       if (g) {
-        g.amounts.push(e.amount);
+        g.entries.push({ amount: e.amount, date: e.date });
         g.months.add(ym);
       } else {
-        groups.set(key, { note: e.note!, category: e.category, amounts: [e.amount], months: new Set([ym]) });
+        groups.set(key, { note: e.note!, category: e.category, entries: [{ amount: e.amount, date: e.date }], months: new Set([ym]) });
       }
     }
 
     // Prenumerata: >= 3 skirtingi mėnesiai ir stabili suma (±15% nuo medianos)
-    const subs: { note: string; category: string; monthlyCost: number; months: number; yearlyCost: number }[] = [];
+    const subs: {
+      note: string; category: string; monthlyCost: number; months: number; yearlyCost: number;
+      priceChange: { from: number; to: number } | null;
+    }[] = [];
     for (const g of groups.values()) {
       if (g.months.size < 3) continue;
-      const sorted = [...g.amounts].sort((a, b) => a - b);
+      const amounts = g.entries.map(x => x.amount);
+      const sorted = [...amounts].sort((a, b) => a - b);
       const median = sorted[Math.floor(sorted.length / 2)];
-      const stable = g.amounts.filter(a => Math.abs(a - median) <= median * 0.15).length / g.amounts.length;
+      const stable = amounts.filter(a => Math.abs(a - median) <= median * 0.15).length / amounts.length;
       if (stable < 0.7) continue;
+
+      // Kainos pokytis: paskutiniai 2 mokėjimai vs ankstesnių mediana
+      let priceChange: { from: number; to: number } | null = null;
+      const chrono = [...g.entries].sort((a, b) => a.date.getTime() - b.date.getTime());
+      if (chrono.length >= 4) {
+        const recent = chrono.slice(-2).map(x => x.amount);
+        const earlier = chrono.slice(0, -2).map(x => x.amount).sort((a, b) => a - b);
+        const earlierMed = earlier[Math.floor(earlier.length / 2)];
+        const recentAvg = (recent[0] + recent[1]) / 2;
+        // Pokytis tikras tik jei abu paskutiniai mokėjimai panašūs tarpusavy ir skiriasi nuo istorijos
+        const recentConsistent = Math.abs(recent[0] - recent[1]) <= Math.max(0.02 * recentAvg, 0.2);
+        if (recentConsistent && Math.abs(recentAvg - earlierMed) > Math.max(0.5, earlierMed * 0.02)) {
+          priceChange = {
+            from: Math.round(earlierMed * 100) / 100,
+            to: Math.round(recentAvg * 100) / 100,
+          };
+        }
+      }
+
       subs.push({
         note: g.note.replace(/ ↻$/, ''),
         category: g.category,
-        monthlyCost: Math.round(median * 100) / 100,
+        monthlyCost: Math.round((priceChange ? priceChange.to : median) * 100) / 100,
         months: g.months.size,
-        yearlyCost: Math.round(median * 12 * 100) / 100,
+        yearlyCost: Math.round((priceChange ? priceChange.to : median) * 12 * 100) / 100,
+        priceChange,
       });
     }
 

@@ -44,6 +44,7 @@ export interface UserProfile {
   id: string;
   email: string;
   salary: number | null;
+  savings: number | null;
   foodDailyLimit: number;
   foodMonthlyLimit: number;
   createdAt: string;
@@ -54,6 +55,8 @@ export type BudgetKey = ExpenseCategory | 'TOTAL';
 export interface Budget {
   category: BudgetKey;
   amount: number;
+  rollover?: boolean;
+  effective?: number; // amount + vokelių carry-over iš praėjusių mėnesių
 }
 
 export interface RecurringExpense {

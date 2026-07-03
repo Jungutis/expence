@@ -14,6 +14,7 @@ router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
         id: true,
         email: true,
         salary: true,
+        savings: true,
         foodDailyLimit: true,
         foodMonthlyLimit: true,
         createdAt: true,
@@ -35,16 +36,31 @@ router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
 // PUT /api/profile
 router.put('/', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { salary, foodDailyLimit, foodMonthlyLimit } = req.body;
+    const { salary, savings, foodDailyLimit, foodMonthlyLimit } = req.body;
 
     const today = new Date().getDate();
     const isFirstWeek = today <= 7;
 
     const updateData: {
       salary?: number | null;
+      savings?: number | null;
       foodDailyLimit?: number;
       foodMonthlyLimit?: number;
     } = {};
+
+    // Atsargų fondą galima keisti visada
+    if (savings !== undefined) {
+      if (savings === null || savings === '' ) {
+        updateData.savings = null;
+      } else {
+        const parsed = parseFloat(savings);
+        if (isNaN(parsed) || parsed < 0) {
+          res.status(400).json({ error: 'Neteisingas santaupų formatas' });
+          return;
+        }
+        updateData.savings = parsed;
+      }
+    }
 
     // Atlyginimą galima keisti visada
     if (salary !== undefined) {
@@ -103,6 +119,7 @@ router.put('/', async (req: AuthRequest, res: Response): Promise<void> => {
         id: true,
         email: true,
         salary: true,
+        savings: true,
         foodDailyLimit: true,
         foodMonthlyLimit: true,
         createdAt: true,

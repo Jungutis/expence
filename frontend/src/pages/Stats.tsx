@@ -55,7 +55,14 @@ export default function Stats() {
   const [profile, setProfile]       = useState<UserProfile | null>(null);
   const [budgets, setBudgets]       = useState<Budget[]>([]);
   const [curExpenses, setCurExpenses] = useState<Expense[]>([]);
-  const [subs, setSubs]       = useState<{ note: string; category: string; monthlyCost: number; months: number; yearlyCost: number }[]>([]);
+  const [subs, setSubs]       = useState<{
+    note: string; category: string; monthlyCost: number; months: number; yearlyCost: number;
+    priceChange: { from: number; to: number } | null;
+  }[]>([]);
+  const [inflation, setInflation] = useState<{
+    overallPct: number | null; comparable: number;
+    items: { note: string; oldPrice: number; newPrice: number; pct: number }[];
+  } | null>(null);
   const [range, setRange]     = useState<6 | 12>(6);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
@@ -71,14 +78,16 @@ export default function Stats() {
       budgetsApi.list().catch(() => ({ budgets: [] as Budget[] })),
       expensesApi.getExpenses(now.getMonth() + 1, now.getFullYear()).catch(() => ({ expenses: [] as Expense[] })),
       expensesApi.getSubscriptions().catch(() => ({ subscriptions: [] })),
+      expensesApi.getInflation().catch(() => null),
     ])
-      .then(([stats, prof, budg, cur, subsR]) => {
+      .then(([stats, prof, budg, cur, subsR, infl]) => {
         setAllMonths(stats.months);
         setTimeHeatmap(stats.timeHeatmap ?? []);
         setProfile(prof);
         setBudgets(budg.budgets);
         setCurExpenses(cur.expenses);
         setSubs(subsR.subscriptions);
+        setInflation(infl);
       })
       .catch(() => setError('Failed to load statistics'))
       .finally(() => setLoading(false));
@@ -217,6 +226,23 @@ export default function Stats() {
     () => whatIfCats.reduce((s, c) => s + c.avgMonthly * ((whatIf[c.cat] ?? 0) / 100) * 12, 0),
     [whatIfCats, whatIf],
   );
+
+  // ── Atsargų fondas: tikslas = 3–6 mėn. faktinių išlaidų vidurkio ──
+  const emergency = useMemo(() => {
+    const savings = profile?.savings ?? null;
+    const closed = allMonths.slice(0, -1).filter(m => m.total > 0);
+    if (savings == null || closed.length === 0) return null;
+    const avg = closed.reduce((s, m) => s + m.total, 0) / closed.length;
+    if (avg <= 0) return null;
+    return {
+      savings,
+      avg,
+      target3: avg * 3,
+      target6: avg * 6,
+      runway: savings / avg,
+      pct6: Math.min(100, (savings / (avg * 6)) * 100),
+    };
+  }, [profile, allMonths]);
 
   if (!user) return null;
 
@@ -548,6 +574,66 @@ export default function Stats() {
             </div>
           )}
 
+          {/* ── Emergency fund + personal inflation ── */}
+          {(emergency || (inflation && inflation.overallPct != null)) && (
+            <div className="pulse-row-2">
+              {emergency && (
+                <div className="x-card">
+                  <div style={{ fontSize: 14.5, fontWeight: 600, letterSpacing: -0.2, marginBottom: 2 }}>🛟 Emergency fund</div>
+                  <div style={{ fontSize: 12, color: 'var(--x-mid)', marginBottom: 14 }}>
+                    Target: 3–6 months of your real spending ({fmtShort(emergency.avg)}/mo)
+                  </div>
+                  <div className="x-num" style={{ fontSize: 26, fontWeight: 600, letterSpacing: -0.6 }}>
+                    {fmt(emergency.savings)}
+                    <span style={{ fontSize: 13, color: emergency.runway >= 3 ? 'var(--x-pos)' : 'var(--x-neg)', fontWeight: 600 }}>
+                      {' '}· {emergency.runway.toFixed(1)} mo runway
+                    </span>
+                  </div>
+                  <div style={{ position: 'relative', height: 10, background: 'var(--x-paper-2)', borderRadius: 5, marginTop: 14, overflow: 'visible' }}>
+                    <div style={{ height: '100%', width: `${emergency.pct6}%`, borderRadius: 5, background: emergency.runway >= 6 ? 'var(--x-pos)' : emergency.runway >= 3 ? 'var(--x-accent)' : 'var(--x-neg)', transition: 'width .5s ease' }} />
+                    {/* 3 mėn. žyma (50% skalės) */}
+                    <div style={{ position: 'absolute', left: '50%', top: -3, bottom: -3, width: 2, background: 'var(--x-hair-2)' }} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--x-mid)', marginTop: 6 }}>
+                    <span>0</span>
+                    <span>3 mo · {fmtShort(emergency.target3)}</span>
+                    <span>6 mo · {fmtShort(emergency.target6)}</span>
+                  </div>
+                  {emergency.runway < 3 && (
+                    <div style={{ fontSize: 12, color: 'var(--x-mid)', marginTop: 10 }}>
+                      {fmt(emergency.target3 - emergency.savings)} to reach the 3-month safety net.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {inflation && inflation.overallPct != null && (
+                <div className="x-card">
+                  <div style={{ fontSize: 14.5, fontWeight: 600, letterSpacing: -0.2, marginBottom: 2 }}>📈 Your personal inflation</div>
+                  <div style={{ fontSize: 12, color: 'var(--x-mid)', marginBottom: 12 }}>
+                    Same purchases now vs ~a year ago ({inflation.comparable} comparable items)
+                  </div>
+                  <div className="x-num" style={{ fontSize: 30, fontWeight: 600, letterSpacing: -0.8, color: inflation.overallPct > 0 ? 'var(--x-neg)' : 'var(--x-pos)' }}>
+                    {inflation.overallPct > 0 ? '+' : ''}{inflation.overallPct.toFixed(1)}%
+                  </div>
+                  {inflation.items.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 14 }}>
+                      {inflation.items.slice(0, 5).map(it => (
+                        <div key={it.note} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5 }}>
+                          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--x-ink-2)' }}>{it.note}</span>
+                          <span className="x-mono" style={{ color: 'var(--x-mid)', fontSize: 11.5 }}>{fmt(it.oldPrice)} → {fmt(it.newPrice)}</span>
+                          <span className="x-mono" style={{ fontWeight: 600, minWidth: 52, textAlign: 'right', color: it.pct > 0 ? 'var(--x-neg)' : 'var(--x-pos)' }}>
+                            {it.pct > 0 ? '+' : ''}{it.pct.toFixed(0)}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ── What-if simulator + subscriptions ── */}
           <div className="pulse-row-2">
             {whatIfCats.length > 0 && (
@@ -603,7 +689,14 @@ export default function Stats() {
                       <span style={{ fontSize: 14 }}>{metaFor(s.category).emoji}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.note}</div>
-                        <div style={{ fontSize: 11, color: 'var(--x-mid)' }}>{s.months} months</div>
+                        <div style={{ fontSize: 11, color: 'var(--x-mid)' }}>
+                          {s.months} months
+                          {s.priceChange && (
+                            <span style={{ color: s.priceChange.to > s.priceChange.from ? 'var(--x-neg)' : 'var(--x-pos)', fontWeight: 600 }}>
+                              {' '}· {s.priceChange.to > s.priceChange.from ? '↑' : '↓'} {fmt(s.priceChange.from)} → {fmt(s.priceChange.to)}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
                         <div className="x-mono" style={{ fontSize: 12.5, fontWeight: 600 }}>{fmt(s.monthlyCost)}/mo</div>

@@ -66,8 +66,17 @@ export const expensesApi = {
   bulkImport: (items: { category: string; amount: number; note?: string; date: string }[]): Promise<{ created: number }> =>
     api.post('/expenses/bulk', { items }).then((r) => r.data),
 
-  getSubscriptions: (): Promise<{ subscriptions: { note: string; category: string; monthlyCost: number; months: number; yearlyCost: number }[] }> =>
+  getSubscriptions: (): Promise<{ subscriptions: {
+    note: string; category: string; monthlyCost: number; months: number; yearlyCost: number;
+    priceChange: { from: number; to: number } | null;
+  }[] }> =>
     api.get('/expenses/subscriptions').then((r) => r.data),
+
+  getInflation: (): Promise<{
+    overallPct: number | null;
+    comparable: number;
+    items: { note: string; oldPrice: number; newPrice: number; pct: number }[];
+  }> => api.get('/expenses/inflation').then((r) => r.data),
 
   // Atsisiunčia CSV ir paleidžia naršyklės download
   exportCsv: async (from?: string, to?: string): Promise<void> => {
@@ -93,8 +102,8 @@ export const budgetsApi = {
   list: (): Promise<{ budgets: Budget[] }> =>
     api.get('/budgets').then((r) => r.data),
 
-  upsert: (category: BudgetKey, amount: number | null): Promise<Budget> =>
-    api.put('/budgets', { category, amount: amount ?? 0 }).then((r) => r.data),
+  upsert: (category: BudgetKey, amount: number | null, rollover = false): Promise<Budget> =>
+    api.put('/budgets', { category, amount: amount ?? 0, rollover }).then((r) => r.data),
 };
 
 export const categoriesApi = {
@@ -117,16 +126,37 @@ export interface Debt {
   type: 'BORROWED' | 'LENT';
   principal: number;
   remaining: number;
+  interestRate?: number | null;
+  minPayment?: number | null;
   note?: string | null;
   createdAt: string;
   closedAt?: string | null;
 }
 
+export interface BalanceCheck {
+  id: string;
+  balance: number;
+  income: number;
+  unaccounted: number | null;
+  createdAt: string;
+}
+
+export const balanceApi = {
+  list: (): Promise<{ checks: BalanceCheck[] }> =>
+    api.get('/balance').then((r) => r.data),
+
+  check: (balance: number, income?: number): Promise<BalanceCheck> =>
+    api.post('/balance', { balance, income }).then((r) => r.data),
+};
+
 export const debtsApi = {
   list: (): Promise<{ debts: Debt[] }> =>
     api.get('/debts').then((r) => r.data),
 
-  create: (data: { name: string; type: 'BORROWED' | 'LENT'; principal: number; note?: string }): Promise<Debt> =>
+  create: (data: {
+    name: string; type: 'BORROWED' | 'LENT'; principal: number;
+    note?: string; interestRate?: number; minPayment?: number;
+  }): Promise<Debt> =>
     api.post('/debts', data).then((r) => r.data),
 
   pay: (id: string, amount: number): Promise<Debt> =>
@@ -160,6 +190,7 @@ export const profileApi = {
 
   updateProfile: (data: {
     salary?: number | null;
+    savings?: number | null;
     foodDailyLimit?: number;
     foodMonthlyLimit?: number;
   }): Promise<UserProfile> => api.put('/profile', data).then((r) => r.data),
@@ -174,6 +205,9 @@ export const pushApi = {
 
   test: (): Promise<{ ok: boolean; sent: number }> =>
     api.post('/push/test').then((r) => r.data),
+
+  sendDigest: (): Promise<{ ok: boolean; sent: number }> =>
+    api.post('/push/digest/me').then((r) => r.data),
 };
 
 export default api;

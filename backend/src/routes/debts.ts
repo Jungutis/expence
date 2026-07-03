@@ -22,7 +22,7 @@ router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
 // POST /api/debts — { name, type, principal, note? }
 router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { name, type, principal, note } = req.body;
+    const { name, type, principal, note, interestRate, minPayment } = req.body;
 
     if (typeof name !== 'string' || !name.trim() || name.trim().length > 60) {
       res.status(400).json({ error: 'Pavadinimas privalomas (iki 60 simbolių)' });
@@ -38,6 +38,23 @@ router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
       return;
     }
 
+    let rate: number | null = null;
+    if (interestRate !== undefined && interestRate !== null && interestRate !== '') {
+      rate = parseFloat(interestRate);
+      if (isNaN(rate) || rate < 0 || rate > 100) {
+        res.status(400).json({ error: 'Palūkanų norma turi būti 0–100 %' });
+        return;
+      }
+    }
+    let minPay: number | null = null;
+    if (minPayment !== undefined && minPayment !== null && minPayment !== '') {
+      minPay = parseFloat(minPayment);
+      if (isNaN(minPay) || minPay <= 0) {
+        res.status(400).json({ error: 'Neteisingas minimalus mokėjimas' });
+        return;
+      }
+    }
+
     const debt = await prisma.debt.create({
       data: {
         userId: req.userId!,
@@ -45,6 +62,8 @@ router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
         type,
         principal: Math.round(parsed * 100) / 100,
         remaining: Math.round(parsed * 100) / 100,
+        interestRate: rate,
+        minPayment: minPay,
         note: typeof note === 'string' && note.trim() ? note.trim() : null,
       },
     });

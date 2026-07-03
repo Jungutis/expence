@@ -8,6 +8,7 @@ import BudgetSettings from '../components/BudgetSettings';
 import RecurringSettings from '../components/RecurringSettings';
 import CategorySettings from '../components/CategorySettings';
 import DebtSettings from '../components/DebtSettings';
+import BalanceCheckCard from '../components/BalanceCheckCard';
 
 export default function Profile() {
   const { user } = useAuth();
@@ -19,8 +20,10 @@ export default function Profile() {
   const [error, setError]       = useState('');
 
   const [salary,          setSalary]          = useState('');
+  const [savings,         setSavings]         = useState('');
   const [foodDailyLimit,  setFoodDailyLimit]  = useState('');
   const [foodMonthlyLimit,setFoodMonthlyLimit]= useState('');
+  const [digestStatus,    setDigestStatus]    = useState('');
 
   const today       = new Date().getDate();
   const isFirstWeek = today <= 7;
@@ -47,6 +50,7 @@ export default function Profile() {
       .then(p => {
         setProfile(p);
         setSalary(p.salary != null ? String(p.salary) : '');
+        setSavings(p.savings != null ? String(p.savings) : '');
         setFoodDailyLimit(String(p.foodDailyLimit));
         setFoodMonthlyLimit(String(p.foodMonthlyLimit));
       })
@@ -65,6 +69,12 @@ export default function Profile() {
         setError('Invalid salary format'); setSaving(false); return;
       }
       payload.salary = parsedSalary;
+
+      const parsedSavings = savings.trim() === '' ? null : parseFloat(savings);
+      if (parsedSavings !== null && (isNaN(parsedSavings) || parsedSavings < 0)) {
+        setError('Invalid savings amount'); setSaving(false); return;
+      }
+      payload.savings = parsedSavings;
 
       if (isFirstWeek) {
         const dl = parseFloat(foodDailyLimit);
@@ -151,6 +161,21 @@ export default function Profile() {
               ✓ Dashboard will show spending as % of {parseFloat(salary).toFixed(0)} € salary
             </div>
           )}
+
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--x-hair)' }}>
+            <div style={{ fontSize: 11, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500, marginBottom: 4 }}>
+              Savings / emergency fund
+            </div>
+            <div style={{ fontSize: 12.5, color: 'var(--x-mid)', marginBottom: 10 }}>
+              Used for the emergency-fund tracker on the Stats page.
+            </div>
+            <div style={{ position: 'relative' }}>
+              <span className="x-mono" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 16, color: 'var(--x-mid)', pointerEvents: 'none' }}>€</span>
+              <input type="number" value={savings} min="0" step="0.01" placeholder="e.g. 3000"
+                onChange={e => setSavings(e.target.value)}
+                className="x-input x-mono" style={{ paddingLeft: 32, fontSize: 16, height: 44 }} />
+            </div>
+          </div>
         </div>
 
         {/* Food budget */}
@@ -327,6 +352,42 @@ export default function Profile() {
         <BudgetSettings />
         <RecurringSettings />
         <DebtSettings />
+        <BalanceCheckCard />
+
+        {/* Weekly digest */}
+        <div className="x-card">
+          <div style={{ fontSize: 11, color: 'var(--x-mid)', textTransform: 'uppercase', letterSpacing: .6, fontWeight: 500, marginBottom: 4 }}>
+            Weekly digest
+          </div>
+          <div style={{ fontSize: 12.5, color: 'var(--x-mid)', marginBottom: 12 }}>
+            A push summary of your week: total spent, % of weekly budget and top category. Requires notifications enabled above.
+          </div>
+          <button type="button"
+            onClick={async () => {
+              setDigestStatus('sending');
+              try {
+                const r = await pushApi.sendDigest();
+                setDigestStatus(`sent:${r.sent}`);
+              } catch {
+                setDigestStatus('error');
+              }
+              setTimeout(() => setDigestStatus(''), 3500);
+            }}
+            disabled={digestStatus === 'sending'}
+            className="x-btn x-btn-secondary" style={{ width: '100%', height: 40 }}>
+            {digestStatus === 'sending' ? 'Sending…' : '📊 Send this week\'s digest now'}
+          </button>
+          {digestStatus.startsWith('sent') && (
+            <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--x-pos)', fontWeight: 500 }} className="anim-fade">
+              ✓ Sent to {digestStatus.split(':')[1]} device(s)
+            </div>
+          )}
+          {digestStatus === 'error' && (
+            <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--x-neg)' }}>
+              ⚠ No active push subscriptions — enable notifications first.
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Current settings summary */}

@@ -12,6 +12,7 @@ model User {
   email            String             @unique
   passwordHash     String
   salary           Float?
+  savings          Float?             // atsargų fondas (emergency fund)
   foodDailyLimit   Float              @default(12)
   foodMonthlyLimit Float              @default(350)
   pushToken        String?            @unique
@@ -22,6 +23,19 @@ model User {
   recurringExpenses RecurringExpense[]
   categories       Category[]
   debts            Debt[]
+  balanceChecks    BalanceCheck[]
+}
+
+model BalanceCheck {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance     Float    // įvestas realus sąskaitos likutis
+  income      Float    @default(0) // gautos pajamos nuo praėjusio patikrinimo
+  unaccounted Float?   // neapskaitytos išlaidos lyginant su ankstesniu patikrinimu
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Debt {
@@ -32,6 +46,8 @@ model Debt {
   type      String    // BORROWED (aš skolingas) | LENT (man skolingi)
   principal Float
   remaining Float
+  interestRate Float? // metinė palūkanų norma % (strategijų simuliatoriui)
+  minPayment   Float? // minimalus mėnesio mokėjimas
   note      String?
   createdAt DateTime  @default(now())
   closedAt  DateTime?
@@ -75,6 +91,7 @@ model Budget {
   user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   category String // "TOTAL" arba kategorijos kodas (MAISTAS, KURAS, ...)
   amount   Float
+  rollover Boolean @default(false) // vokelių režimas: nepanaudotas likutis keliauja į kitą mėnesį
 
   @@unique([userId, category])
 }

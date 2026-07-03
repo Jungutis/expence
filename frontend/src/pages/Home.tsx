@@ -244,7 +244,8 @@ export default function Home() {
   // Budget lookups: TOTAL + per-category monthly limits
   const budgetMap   = useMemo(() => {
     const m: Partial<Record<string, number>> = {};
-    budgets.forEach(b => { m[b.category] = b.amount; });
+    // Vokelių režime naudojam effective (bazė + carry-over), kitaip — bazinę sumą
+    budgets.forEach(b => { m[b.category] = b.effective ?? b.amount; });
     return m;
   }, [budgets]);
   const totalBudget = budgetMap['TOTAL'] ?? 0;

@@ -3,6 +3,7 @@ import webpush from 'web-push';
 import { randomUUID } from 'crypto';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
+import { sendDigestToUser } from '../lib/digest';
 
 if (process.env.VAPID_EMAIL && process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(
@@ -118,6 +119,50 @@ router.post('/test', authMiddleware, async (req: AuthRequest, res: Response): Pr
   } catch (e) {
     console.error('push/test error:', e);
     res.status(500).json({ error: String(e) });
+  }
+});
+
+// POST /api/push/digest/me — išsiųsti savaitės suvestinę sau (testas / rankinis)
+router.post('/digest/me', authMiddleware, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const sent = await sendDigestToUser(req.userId!);
+    if (sent === 0) {
+      res.status(404).json({ error: 'Nėra aktyvių push subscriptions' });
+      return;
+    }
+    res.json({ ok: true, sent });
+  } catch (e) {
+    console.error('push/digest/me error:', e);
+    res.status(500).json({ error: 'Serverio klaida' });
+  }
+});
+
+// POST /api/push/digest — cron endpoint: siunčia digest'ą VISIEMS vartotojams.
+// Apsaugotas X-Digest-Secret header'iu (env DIGEST_SECRET).
+// Kviesti kartą per savaitę iš išorinio cron (cron-job.org, GitHub Actions ir pan.)
+router.post('/digest', async (req: Request, res: Response): Promise<void> => {
+  const secret = process.env.DIGEST_SECRET;
+  if (!secret) {
+    res.status(503).json({ error: 'DIGEST_SECRET nesukonfigūruotas' });
+    return;
+  }
+  if (req.headers['x-digest-secret'] !== secret) {
+    res.status(401).json({ error: 'Neteisingas secret' });
+    return;
+  }
+  try {
+    const users = await prisma.pushSubscription.findMany({
+      select: { userId: true },
+      distinct: ['userId'],
+    });
+    let totalSent = 0;
+    for (const u of users) {
+      totalSent += await sendDigestToUser(u.userId).catch(() => 0);
+    }
+    res.json({ ok: true, users: users.length, sent: totalSent });
+  } catch (e) {
+    console.error('push/digest error:', e);
+    res.status(500).json({ error: 'Serverio klaida' });
   }
 });
 

@@ -1,12 +1,37 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Dispatch, SetStateAction } from 'react';
 import { budgetsApi } from '../services/api';
 import type { Budget } from '../types';
 import { useCategories } from '../hooks/useCategories';
 
+/** Vokelių (rollover) jungiklis po biudžeto įvesties lauku */
+function RolloverToggle({ code, rollovers, setRollovers, effective, values }: {
+  code: string;
+  rollovers: Record<string, boolean>;
+  setRollovers: Dispatch<SetStateAction<Record<string, boolean>>>;
+  effective: Record<string, number>;
+  values: Record<string, string>;
+}) {
+  const hasValue = (values[code] ?? '').trim() !== '';
+  if (!hasValue) return null;
+  const carry = (effective[code] ?? 0) - parseFloat(values[code] || '0');
+  return (
+    <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5, fontSize: 11.5, color: 'var(--x-mid)', cursor: 'pointer' }}>
+      <input type="checkbox" checked={rollovers[code] ?? false}
+        onChange={e => setRollovers(r => ({ ...r, [code]: e.target.checked }))} />
+      ↻ Roll over
+      {rollovers[code] && carry > 0.005 && (
+        <span className="x-mono" style={{ color: 'var(--x-pos)', fontWeight: 600 }}>+{carry.toFixed(2)} € carried</span>
+      )}
+    </label>
+  );
+}
+
 /** Mėnesio biudžetų (bendro ir pagal kategoriją) nustatymo kortelė */
 export default function BudgetSettings() {
   const { cats } = useCategories();
-  const [values, setValues]   = useState<Record<string, string>>({});
+  const [values, setValues]     = useState<Record<string, string>>({});
+  const [rollovers, setRollovers] = useState<Record<string, boolean>>({});
+  const [effective, setEffective] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(false);
   const [saved, setSaved]     = useState(false);
@@ -16,8 +41,14 @@ export default function BudgetSettings() {
     budgetsApi.list()
       .then(({ budgets }) => {
         const v: Record<string, string> = {};
-        budgets.forEach((b: Budget) => { v[b.category] = String(b.amount); });
-        setValues(v);
+        const r: Record<string, boolean> = {};
+        const ef: Record<string, number> = {};
+        budgets.forEach((b: Budget) => {
+          v[b.category] = String(b.amount);
+          r[b.category] = !!b.rollover;
+          if (b.effective != null) ef[b.category] = b.effective;
+        });
+        setValues(v); setRollovers(r); setEffective(ef);
       })
       .catch(() => setError('Could not load budgets'))
       .finally(() => setLoading(false));
@@ -36,7 +67,7 @@ export default function BudgetSettings() {
           setSaving(false);
           return;
         }
-        await budgetsApi.upsert(key, amount);
+        await budgetsApi.upsert(key, amount, rollovers[key] ?? false);
       }
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
@@ -68,6 +99,7 @@ export default function BudgetSettings() {
             onChange={e => setValues(v => ({ ...v, TOTAL: e.target.value }))}
             className="x-input" style={{ paddingLeft: 28 }} />
         </div>
+        <RolloverToggle code="TOTAL" rollovers={rollovers} setRollovers={setRollovers} effective={effective} values={values} />
       </div>
 
       {/* Per-category */}
@@ -82,8 +114,13 @@ export default function BudgetSettings() {
                 onChange={e => setValues(v => ({ ...v, [cat.code]: e.target.value }))}
                 className="x-input" style={{ paddingLeft: 28 }} />
             </div>
+            <RolloverToggle code={cat.code} rollovers={rollovers} setRollovers={setRollovers} effective={effective} values={values} />
           </div>
         ))}
+      </div>
+
+      <div style={{ marginTop: 12, fontSize: 11.5, color: 'var(--x-mid-2)', lineHeight: 1.5 }}>
+        ↻ Envelope mode: unused budget carries over to next month (e.g. skip clothes this month → double envelope next month).
       </div>
 
       {error && (

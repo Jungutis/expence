@@ -9,6 +9,7 @@ import budgetRoutes from './routes/budgets';
 import recurringRoutes from './routes/recurring';
 import categoryRoutes from './routes/categories';
 import debtRoutes from './routes/debts';
+import balanceRoutes from './routes/balance';
 
 dotenv.config();
 
@@ -49,6 +50,7 @@ app.use('/api/budgets', budgetRoutes);
 app.use('/api/recurring', recurringRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/debts', debtRoutes);
+app.use('/api/balance', balanceRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {
