@@ -84,17 +84,19 @@ router.get('/export', async (req: AuthRequest, res: Response): Promise<void> => 
       orderBy: { date: 'asc' },
     });
 
+    // ';' skirtukas ir ',' dešimtainis — kad lietuviškas Excel atidarytų teisingai
     const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+    const num = (n: number) => n.toFixed(2).replace('.', ',');
     const rows = [
-      'Date,Time,Category,Note,Amount (EUR)',
+      'Date;Time;Category;Note;Amount (EUR)',
       ...expenses.map(e => {
         const d = new Date(e.date);
         const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-        return [date, time, e.category, esc(e.note || ''), e.amount.toFixed(2)].join(',');
+        return [date, time, e.category, esc(e.note || ''), num(e.amount)].join(';');
       }),
       '',
-      `Total,,,,${expenses.reduce((s, e) => s + e.amount, 0).toFixed(2)}`,
+      `Total;;;;${num(expenses.reduce((s, e) => s + e.amount, 0))}`,
     ];
 
     const fname = `expenses_${fromDate.toISOString().slice(0, 10)}_${toDate.toISOString().slice(0, 10)}.csv`;
